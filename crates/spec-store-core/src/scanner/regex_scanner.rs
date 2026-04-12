@@ -186,40 +186,53 @@ fn byte_offset_to_line(source: &str, offset: usize) -> usize {
 
 fn measure_block(lines: &[&str], start_line: usize) -> (usize, usize) {
     let idx = start_line.saturating_sub(1);
+    let line_count = count_block_lines(lines, idx);
+    // Count complexity only within the function's actual lines
     let snippet: String = lines
         .iter()
         .skip(idx)
-        .take(200)
+        .take(line_count)
         .cloned()
         .collect::<Vec<_>>()
         .join("\n");
-    let depth = measure_depth(lines, idx);
-    let line_count = count_block_lines(lines, idx, depth);
     let complexity = complexity_re().find_iter(&snippet).count().min(50) + 1;
     (line_count, complexity)
 }
 
-fn measure_depth(lines: &[&str], idx: usize) -> usize {
-    lines
-        .get(idx)
-        .map(|l| l.chars().take_while(|c| *c == ' ').count())
-        .unwrap_or(0)
-}
-
-fn count_block_lines(lines: &[&str], start: usize, base_depth: usize) -> usize {
+fn count_block_lines(lines: &[&str], start: usize) -> usize {
+    let mut brace_depth: i32 = 0;
+    let mut found_open = false;
     let mut count = 0;
-    let mut in_body = false;
+
     for line in lines.iter().skip(start) {
         count += 1;
-        if line.contains('{') || line.trim().ends_with(':') {
-            in_body = true;
+        for ch in line.chars() {
+            if ch == '{' {
+                brace_depth += 1;
+                found_open = true;
+            } else if ch == '}' {
+                brace_depth -= 1;
+                // Closing brace of the function
+                if found_open && brace_depth == 0 {
+                    return count;
+                }
+            }
         }
-        if !in_body {
-            continue;
-        }
-        let depth = line.chars().take_while(|c| *c == ' ').count();
-        if count > 1 && !line.trim().is_empty() && depth <= base_depth {
-            break;
+        // Python: indentation-based (no braces)
+        if !found_open && count > 1 {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            // For Python, check if we've returned to the same or lesser indent
+            let base = lines
+                .get(start)
+                .map(|l| l.chars().take_while(|c| *c == ' ').count())
+                .unwrap_or(0);
+            let depth = line.chars().take_while(|c| *c == ' ').count();
+            if depth <= base && !trimmed.starts_with('#') && !trimmed.starts_with("def ") {
+                return count.saturating_sub(1).max(1);
+            }
         }
         if count > 200 {
             break;

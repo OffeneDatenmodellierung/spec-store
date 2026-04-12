@@ -53,9 +53,10 @@ pub fn check_file(path: &Path, config: &QualityConfig) -> Result<FileViolation> 
     let functions = regex_scanner::scan_source(&source, &file, lang);
     let code_lines = count_code_lines(&source);
     let mut violations = vec![];
+    let prod_functions: Vec<_> = functions.iter().filter(|f| !f.is_test).collect();
     check_file_length(code_lines, config, &mut violations);
-    check_function_count(functions.len(), config, &mut violations);
-    for f in &functions {
+    check_function_count(prod_functions.len(), config, &mut violations);
+    for f in &prod_functions {
         check_function(f, config, &mut violations);
     }
     Ok(FileViolation { file, violations })
