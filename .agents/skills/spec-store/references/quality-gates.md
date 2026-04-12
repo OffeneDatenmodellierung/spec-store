@@ -41,6 +41,16 @@ spec-store coverage check
 spec-store coverage check --from path/to/lcov.info
 ```
 
+## Coverage exclusion policy
+
+**Only exclude from coverage if the code requires external services to test** (databases,
+Docker, remote APIs, hardware). Code that can be tested with in-memory stores, temp
+directories, or by extracting pure logic into testable functions MUST be tested.
+
+Do NOT exclude a file just because it's a "thin wrapper" or "CLI glue". Extract the
+testable logic into a function that can be called from a test, even if the top-level
+handler also does `println!`.
+
 ## What to do when gates fail
 
 - **File too long**: Split into submodules. Move related functions into a new file.
@@ -48,5 +58,5 @@ spec-store coverage check --from path/to/lcov.info
 - **Too many functions**: Group related functions into a submodule.
 - **Complexity too high**: Simplify branching. Extract conditions into named booleans. Use early returns.
 - **Too many parameters**: Use a config/options struct.
-- **Coverage too low**: Write tests. Target the uncovered lines specifically.
+- **Coverage too low**: Write tests. Extract testable logic from I/O handlers if needed.
 - **Similarity too high**: Extend the existing function instead. Use `spec-store search` to find it.

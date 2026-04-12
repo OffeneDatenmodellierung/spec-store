@@ -12,18 +12,14 @@ lcov_max_age_mins = 60       # Max age of lcov file before warning
 ratchet = true               # Baselines can only go up, never down
 fail_on_regression = true    # Treat regressions as errors (false = warnings)
 
-# Files excluded from coverage checks entirely
+# Files excluded from coverage checks entirely.
+# ONLY exclude files that require external services (databases, Docker, APIs)
+# to test. If logic can be extracted and tested with in-memory fixtures, do that
+# instead of excluding.
 exclude = [
     "src/generated/**",
     "tests/**",
     "benches/**",
-]
-
-# Files tested by e2e/integration tests (not in lcov.info)
-# These show as "⊘ e2e" in reports instead of failures
-e2e_tested = [
-    "crates/spec-store-cli/src/dispatch.rs",
-    "crates/spec-store-cli/src/reporter.rs",
 ]
 ```
 
