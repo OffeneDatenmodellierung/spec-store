@@ -282,6 +282,36 @@ mod tests {
     }
 
     #[test]
+    fn catchup_staged_in_non_git_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ctx = AppContext {
+            root: dir.path().to_path_buf(),
+            config: config::Config::default(),
+            structured: StructuredStore::open_in_memory().unwrap(),
+            baseline: BaselineStore::new_empty(),
+            vectors: LocalVectorStore::new_empty(),
+        };
+        // No git repo → no staged files → no missing
+        let result = catchup(&ctx, None, true).unwrap();
+        assert!(result.missing.is_empty());
+    }
+
+    #[test]
+    fn scan_staged_empty_in_non_git() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let fns = scan_staged_functions(dir.path());
+        assert!(fns.is_empty());
+    }
+
+    #[test]
+    fn init_creates_config() {
+        let dir = tempfile::TempDir::new().unwrap();
+        // init requires git, but should at least create config
+        let _ = init(dir.path());
+        assert!(dir.path().join(".spec-store/config.toml").exists());
+    }
+
+    #[test]
     fn project_rules_includes_config_values() {
         let ctx = test_context();
         let rules = project_rules(&ctx).unwrap();

@@ -284,3 +284,121 @@ fn cmd_status(ctx: &AppContext) -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spec_store_core::store::{BaselineStore, LocalVectorStore, StructuredStore};
+
+    fn ctx() -> AppContext {
+        AppContext {
+            root: std::path::PathBuf::from("."),
+            config: spec_store_core::config::Config::default(),
+            structured: StructuredStore::open_in_memory().unwrap(),
+            baseline: BaselineStore::new_empty(),
+            vectors: LocalVectorStore::new_empty(),
+        }
+    }
+
+    #[test]
+    fn search_empty_prints_no_results() {
+        let c = ctx();
+        let args = SearchArgs {
+            query: "nonexistent".into(),
+            r#type: None,
+            limit: 5,
+        };
+        cmd_search(args, &c).unwrap();
+    }
+
+    #[test]
+    fn search_with_results() {
+        let mut c = ctx();
+        ops::register_fn(&mut c, "validate", "src/a.rs", 1, "validates").unwrap();
+        let args = SearchArgs {
+            query: "validate".into(),
+            r#type: None,
+            limit: 5,
+        };
+        cmd_search(args, &c).unwrap();
+    }
+
+    #[test]
+    fn register_fn_and_decision() {
+        let mut c = ctx();
+        cmd_register(
+            RegisterCommand::Fn(RegisterFnArgs {
+                name: "foo".into(),
+                file: "src/foo.rs".into(),
+                line: 1,
+                desc: "does foo".into(),
+            }),
+            &mut c,
+        )
+        .unwrap();
+        cmd_register(
+            RegisterCommand::Decision(RegisterDecisionArgs {
+                text: "Use JWT".into(),
+                tags: vec!["auth".into()],
+            }),
+            &mut c,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn decision_add_and_list() {
+        let mut c = ctx();
+        cmd_decision(
+            DecisionCommand::Add(RegisterDecisionArgs {
+                text: "Use HMAC".into(),
+                tags: vec![],
+            }),
+            &mut c,
+        )
+        .unwrap();
+        cmd_decision(DecisionCommand::List, &mut c).unwrap();
+    }
+
+    #[test]
+    fn catchup_empty_store() {
+        let c = ctx();
+        let args = CatchupArgs {
+            staged: false,
+            path: Some("/nonexistent".into()),
+            auto_register: false,
+            fail_on_missing: false,
+        };
+        cmd_catchup(args, &c).unwrap();
+    }
+
+    #[test]
+    fn worktree_claim_list_release_verify() {
+        let mut c = ctx();
+        cmd_worktree(
+            WorktreeCommand::Claim(WorktreeClaimArgs {
+                branch: "feat/x".into(),
+                contract: None,
+                owner: Some("test".into()),
+            }),
+            &mut c,
+        )
+        .unwrap();
+        cmd_worktree(WorktreeCommand::List, &mut c).unwrap();
+        cmd_worktree(WorktreeCommand::Verify, &mut c).unwrap();
+        cmd_worktree(
+            WorktreeCommand::Release(WorktreeReleaseArgs {
+                branch: "feat/x".into(),
+            }),
+            &mut c,
+        )
+        .unwrap();
+        cmd_worktree(WorktreeCommand::List, &mut c).unwrap();
+    }
+
+    #[test]
+    fn status_prints() {
+        let c = ctx();
+        cmd_status(&c).unwrap();
+    }
+}

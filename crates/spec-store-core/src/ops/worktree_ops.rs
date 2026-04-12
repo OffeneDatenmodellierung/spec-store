@@ -48,9 +48,9 @@ fn detect_git_worktrees(root: &std::path::Path) -> anyhow::Result<Vec<Worktree>>
         return Ok(vec![]);
     }
 
-    Ok(parse_git_worktree_output(
-        &String::from_utf8_lossy(&output.stdout),
-    ))
+    Ok(parse_git_worktree_output(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
 }
 
 /// Parse `git worktree list --porcelain` output into Worktree entries.
@@ -101,7 +101,10 @@ pub fn verify_worktrees(ctx: &AppContext) -> anyhow::Result<Vec<String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config, store::{BaselineStore, LocalVectorStore, StructuredStore}};
+    use crate::{
+        config,
+        store::{BaselineStore, LocalVectorStore, StructuredStore},
+    };
 
     fn test_ctx() -> AppContext {
         AppContext {

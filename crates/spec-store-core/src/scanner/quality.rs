@@ -137,11 +137,19 @@ fn check_function(f: &FunctionInfo, config: &QualityConfig, v: &mut Vec<Violatio
 }
 
 fn count_code_lines(source: &str) -> usize {
+    let test_ranges = crate::scanner::test_detect::find_cfg_test_ranges(source);
     source
         .lines()
-        .filter(|l| {
+        .enumerate()
+        .filter(|(i, l)| {
+            let line_num = i + 1; // 1-indexed
             let t = l.trim();
-            !t.is_empty() && !t.starts_with("//") && !t.starts_with('#')
+            !t.is_empty()
+                && !t.starts_with("//")
+                && !t.starts_with('#')
+                && !test_ranges
+                    .iter()
+                    .any(|&(start, end)| line_num >= start && line_num <= end)
         })
         .count()
 }
