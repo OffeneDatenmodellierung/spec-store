@@ -32,6 +32,10 @@ If similarity >= 0.85 exists, extend the existing function instead of writing a 
 ### Before pushing
 
 ```bash
+# 1. Run tests with coverage (generates lcov.info — required by coverage check)
+cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+
+# 2. Run gates
 spec-store quality check --staged
 spec-store catchup --staged --fail-on-missing
 spec-store coverage check

@@ -55,6 +55,13 @@ spec-store decision list
 
 ## Coverage
 
+**Prerequisite**: Coverage commands require an `lcov.info` file. Generate it first:
+
+```bash
+# Generate coverage data (MUST run before any coverage command)
+cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+```
+
 ```bash
 # Full coverage report
 spec-store coverage report
