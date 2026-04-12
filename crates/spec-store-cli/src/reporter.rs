@@ -4,7 +4,7 @@ use spec_store_core::{
     coverage::{checker::CheckResult, lcov::FileCoverage},
     store::baseline::BaselineStore,
 };
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 pub struct ReportInput<'a> {
     pub coverage: &'a HashMap<String, FileCoverage>,
@@ -12,7 +12,6 @@ pub struct ReportInput<'a> {
     pub config: &'a CoverageConfig,
     pub baselines: &'a BaselineStore,
     pub show_passing: bool,
-    pub sort_by_pct: bool,
 }
 
 impl<'a> ReportInput<'a> {
@@ -28,68 +27,70 @@ impl<'a> ReportInput<'a> {
             config,
             baselines,
             show_passing: true,
-            sort_by_pct: true,
         }
     }
 }
 
+// ── Text report (grouped by folder) ──────────────────────────────────
+
 pub fn print_report(input: &ReportInput) {
-    let ReportInput {
-        coverage,
-        results,
-        config,
-        baselines,
-        show_passing,
-        sort_by_pct,
-    } = input;
     let date = chrono::Utc::now().format("%Y-%m-%d");
     println!("\n{}", format!("COVERAGE REPORT  {date}").bold());
     println!(
         "Threshold: {:.1}% per file | Ratchet: {}",
-        config.min_per_file,
-        if config.ratchet {
+        input.config.min_per_file,
+        if input.config.ratchet {
             "enabled".green()
         } else {
             "disabled".dimmed()
         }
     );
-    println!("{}", "━".repeat(60));
-    println!("{:<40} {:>6}  {:>7}  STATUS", "FILE", "LINES", "COV");
-    println!("{}", "━".repeat(60));
 
-    let mut sorted_results: Vec<_> = results.iter().collect();
-    if *sort_by_pct {
-        sorted_results.sort_by(|a, b| {
+    let grouped = group_by_folder(input.results);
+
+    for (folder, results) in &grouped {
+        print_folder(folder, results, input);
+    }
+
+    println!("{}", "━".repeat(70));
+    print_summary(input);
+}
+
+fn group_by_folder(results: &[CheckResult]) -> BTreeMap<String, Vec<&CheckResult>> {
+    let mut groups: BTreeMap<String, Vec<&CheckResult>> = BTreeMap::new();
+    for r in results {
+        let path = r.file();
+        let folder = match path.rfind('/') {
+            Some(i) => &path[..i],
+            None => ".",
+        };
+        groups.entry(folder.to_string()).or_default().push(r);
+    }
+    // Sort each group by coverage ascending
+    for group in groups.values_mut() {
+        group.sort_by(|a, b| {
             a.pct()
                 .partial_cmp(&b.pct())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-    } else {
-        sorted_results.sort_by(|a, b| a.file().cmp(b.file()));
     }
-
-    for result in &sorted_results {
-        if !show_passing && !result.is_failure() {
-            continue;
-        }
-        print_row(result, coverage, baselines);
-    }
-
-    println!("{}", "━".repeat(60));
-    print_summary(results, coverage, config);
+    groups
 }
 
-fn print_row(
-    result: &CheckResult,
-    coverage: &HashMap<String, FileCoverage>,
-    baselines: &BaselineStore,
-) {
-    let file = result.file();
-    let display = truncate_path(file, 38);
-    let lines = coverage.get(file).map(|f| f.lines_found).unwrap_or(0);
-    let baseline = baselines.get(file);
-    let (status, pct_str) = format_status(result, baseline);
-    println!("{:<40} {:>6}  {}  {}", display, lines, pct_str, status);
+fn print_folder(folder: &str, results: &[&CheckResult], input: &ReportInput) {
+    println!("\n  {}", folder.bold().dimmed());
+    println!("  {:<30} {:>6}  {:>7}  STATUS", "FILE", "LINES", "COV");
+    for result in results {
+        if !input.show_passing && !result.is_failure() {
+            continue;
+        }
+        let file = result.file();
+        let filename = file.rsplit('/').next().unwrap_or(file);
+        let lines = input.coverage.get(file).map(|f| f.lines_found).unwrap_or(0);
+        let baseline = input.baselines.get(file);
+        let (status, pct_str) = format_status(result, baseline);
+        println!("  {:<30} {:>6}  {}  {}", filename, lines, pct_str, status);
+    }
 }
 
 fn format_status(result: &CheckResult, baseline: Option<f64>) -> (String, String) {
@@ -108,55 +109,82 @@ fn format_status(result: &CheckResult, baseline: Option<f64>) -> (String, String
             format!("{pct:.1}%").yellow().to_string(),
         ),
         CheckResult::BelowThreshold { pct, required, .. } => (
-            format!("✗ NEW < {required:.0}%").red().to_string(),
+            format!("✗ < {required:.0}%").red().to_string(),
             format!("{pct:.1}%").red().to_string(),
         ),
         CheckResult::Regressed { pct, baseline, .. } => (
-            format!("✗ REGRESSED (was {baseline:.1}%)")
-                .red()
-                .to_string(),
+            format!("✗ was {baseline:.1}%").red().to_string(),
             format!("{pct:.1}%").red().to_string(),
         ),
     }
 }
 
-fn print_summary(
-    results: &[CheckResult],
-    coverage: &HashMap<String, FileCoverage>,
-    _config: &CoverageConfig,
-) {
-    let total_lines: u64 = coverage.values().map(|f| f.lines_found).sum();
-    let total_hit: u64 = coverage.values().map(|f| f.lines_hit).sum();
+fn print_summary(input: &ReportInput) {
+    let total_lines: u64 = input.coverage.values().map(|f| f.lines_found).sum();
+    let total_hit: u64 = input.coverage.values().map(|f| f.lines_hit).sum();
     let overall = if total_lines > 0 {
         total_hit as f64 / total_lines as f64 * 100.0
     } else {
         100.0
     };
-    let failures = results.iter().filter(|r| r.is_failure()).count();
+    let failures = input.results.iter().filter(|r| r.is_failure()).count();
+    let passing = input.results.len() - failures;
     let status = if failures == 0 {
         "PASSED".green()
     } else {
         "BLOCKED".red()
     };
     println!(
-        "{:<40} {:>6}  {:.1}%  {}",
-        "OVERALL", total_lines, overall, status
+        "{:<32} {:>6}  {:.1}%  {}  ({} pass, {} fail)",
+        "OVERALL", total_lines, overall, status, passing, failures,
     );
-    if failures > 0 {
-        println!(
-            "\n{} file(s) blocked. Run {} for details.",
-            failures.to_string().red(),
-            "spec-store coverage explain <file>".italic()
-        );
-    }
 }
 
-fn truncate_path(path: &str, max_len: usize) -> String {
-    if path.len() <= max_len {
-        return path.to_string();
-    }
-    format!("…{}", &path[path.len().saturating_sub(max_len - 1)..])
+// ── JSON report ──────────────────────────────────────────────────────
+
+pub fn print_report_json(input: &ReportInput) {
+    let files: Vec<serde_json::Value> = input
+        .results
+        .iter()
+        .map(|r| {
+            let baseline = input.baselines.get(r.file());
+            serde_json::json!({
+                "file": r.file(),
+                "lines": input.coverage.get(r.file()).map(|f| f.lines_found).unwrap_or(0),
+                "pct": format!("{:.1}", r.pct()),
+                "status": match r {
+                    CheckResult::Pass { .. } => "pass",
+                    CheckResult::Legacy { .. } => "legacy",
+                    CheckResult::BelowThreshold { .. } => "below_threshold",
+                    CheckResult::Regressed { .. } => "regressed",
+                },
+                "is_failure": r.is_failure(),
+                "baseline": baseline,
+            })
+        })
+        .collect();
+
+    let total_lines: u64 = input.coverage.values().map(|f| f.lines_found).sum();
+    let total_hit: u64 = input.coverage.values().map(|f| f.lines_hit).sum();
+    let overall = if total_lines > 0 {
+        total_hit as f64 / total_lines as f64 * 100.0
+    } else {
+        100.0
+    };
+
+    let output = serde_json::json!({
+        "threshold": input.config.min_per_file,
+        "ratchet": input.config.ratchet,
+        "overall_pct": format!("{:.1}", overall),
+        "total_lines": total_lines,
+        "total_hit": total_hit,
+        "files": files,
+    });
+
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
+
+// ── Quality report ───────────────────────────────────────────────────
 
 pub fn print_quality_report(violations: &[spec_store_core::scanner::FileViolation]) {
     println!("\n{}", "QUALITY GATES".bold());
@@ -186,19 +214,6 @@ pub fn print_quality_report(violations: &[spec_store_core::scanner::FileViolatio
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn truncate_path_short_path_unchanged() {
-        assert_eq!(truncate_path("src/foo.rs", 40), "src/foo.rs");
-    }
-
-    #[test]
-    fn truncate_path_long_path_truncated() {
-        let long = "src/very/deeply/nested/module/submodule/file.rs";
-        let result = truncate_path(long, 20);
-        assert!(result.starts_with('…'));
-        assert!(result.chars().count() <= 20);
-    }
 
     #[test]
     fn format_status_pass_shows_tick() {
@@ -241,5 +256,43 @@ mod tests {
         };
         let (status, _) = format_status(&r, None);
         assert!(status.contains('⚠'));
+    }
+
+    #[test]
+    fn group_by_folder_groups_correctly() {
+        let results = vec![
+            CheckResult::Pass {
+                file: "src/a.rs".into(),
+                pct: 90.0,
+            },
+            CheckResult::Pass {
+                file: "src/b.rs".into(),
+                pct: 85.0,
+            },
+            CheckResult::Pass {
+                file: "tests/t.rs".into(),
+                pct: 100.0,
+            },
+        ];
+        let grouped = group_by_folder(&results);
+        assert_eq!(grouped.len(), 2);
+        assert_eq!(grouped["src"].len(), 2);
+        assert_eq!(grouped["tests"].len(), 1);
+    }
+
+    #[test]
+    fn group_by_folder_sorts_by_coverage() {
+        let results = vec![
+            CheckResult::Pass {
+                file: "src/high.rs".into(),
+                pct: 99.0,
+            },
+            CheckResult::Pass {
+                file: "src/low.rs".into(),
+                pct: 50.0,
+            },
+        ];
+        let grouped = group_by_folder(&results);
+        assert!(grouped["src"][0].pct() < grouped["src"][1].pct());
     }
 }

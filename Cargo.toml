@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/spec-store-core", "crates/spec-store-cli", "crates/spec-store-mcp"]
+members = ["crates/spec-store-core", "crates/spec-store-cli"]
 resolver = "2"
 
 [workspace.package]

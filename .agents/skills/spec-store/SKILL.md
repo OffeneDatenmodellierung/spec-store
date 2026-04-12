@@ -72,6 +72,11 @@ See [references/commands.md](references/commands.md) for full CLI usage.
 See [references/test-tracking.md](references/test-tracking.md) for test inventory,
 function-to-test mapping, and per-function coverage.
 
+## Configuration
+
+See [references/configuration.md](references/configuration.md) for coverage thresholds,
+quality limits, exclusion patterns, and `--json` output.
+
 ## Architecture
 
 See [references/architecture.md](references/architecture.md) for module map and

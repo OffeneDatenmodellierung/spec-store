@@ -157,12 +157,17 @@ fn cmd_coverage(cmd: CoverageCommand, ctx: &mut AppContext) -> anyhow::Result<()
     match cmd {
         CoverageCommand::Report(args) => {
             let report = ops::check_coverage(ctx, args.from.as_deref())?;
-            crate::reporter::print_report(&crate::reporter::ReportInput::new(
+            let input = crate::reporter::ReportInput::new(
                 &report.coverage,
                 &report.results,
                 &ctx.config.coverage,
                 &ctx.baseline,
-            ));
+            );
+            if args.json {
+                crate::reporter::print_report_json(&input);
+            } else {
+                crate::reporter::print_report(&input);
+            }
         }
         CoverageCommand::Check(args) => {
             let report = ops::check_coverage(ctx, args.from.as_deref())?;

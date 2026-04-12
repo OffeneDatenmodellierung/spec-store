@@ -131,6 +131,9 @@ pub struct CoverageReportArgs {
     pub from: Option<String>,
     #[arg(long)]
     pub file: Option<String>,
+    /// Output as JSON
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Args)]

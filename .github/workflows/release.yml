@@ -162,8 +162,7 @@ jobs:
           ARCHIVE="spec-store-${TARGET}-v${VERSION}.tar.gz"
           tar -czf "$ARCHIVE" \
             -C "target/${TARGET}/release" \
-            "spec-store${{ matrix.binary_ext }}" \
-            "spec-store-mcp${{ matrix.binary_ext }}"
+            "spec-store${{ matrix.binary_ext }}"
           echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
 
       - name: Package (Windows)
@@ -174,7 +173,7 @@ jobs:
         shell: pwsh
         run: |
           $ARCHIVE = "spec-store-${env:TARGET}-v${env:VERSION}.zip"
-          Compress-Archive -Path "target/${env:TARGET}/release/spec-store${{ matrix.binary_ext }}", "target/${env:TARGET}/release/spec-store-mcp${{ matrix.binary_ext }}" -DestinationPath $ARCHIVE -Force
+          Compress-Archive -Path "target/${env:TARGET}/release/spec-store${{ matrix.binary_ext }}" -DestinationPath $ARCHIVE -Force
           echo "ARCHIVE=$ARCHIVE" >> $env:GITHUB_ENV
 
       - name: Upload artifact

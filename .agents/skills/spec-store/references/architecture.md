@@ -40,11 +40,6 @@ crates/
       commands.rs      Clap argument structs
       dispatch.rs      Command routing, coloured output
       reporter.rs      Coverage/quality terminal tables
-
-  spec-store-mcp/      MCP server binary (name: spec-store-mcp)
-    src/
-      main.rs          Stdio transport setup
-      tools.rs         15 MCP tools + 2 resources
 ```
 
 ## Key decisions
@@ -54,7 +49,7 @@ crates/
 - **Per-file coverage threshold** — not project-wide, to prevent masking.
 - **Git hooks in `.githooks/`** — committed to repo with `core.hooksPath` for team enforcement.
 - **AI is the caller's responsibility** — spec-store stores and enforces, it does not generate descriptions or call LLM APIs.
-- **MCP server is optional** — the CLI works standalone for CI/hooks. The MCP server adds agent integration.
+- **CLI + skill for agent integration** — agents call `spec-store` via shell commands. The skill (`.agents/skills/spec-store/`) teaches agents the workflow.
 
 ## Data storage
 
