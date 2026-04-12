@@ -1,0 +1,244 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 0.3.0-dev.1). If not provided, uses version from Cargo.toml."
+        required: false
+        type: string
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Determine version and check if release needed ────────────────────
+  check-trigger:
+    name: Check Trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+      tag_exists: ${{ steps.check.outputs.tag_exists }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine release parameters
+        id: check
+        run: |
+          # Get version from workspace Cargo.toml
+          CARGO_VERSION=$(grep -A 5 '^\[workspace\.package\]' Cargo.toml | grep '^version = ' | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "Version from Cargo.toml: $CARGO_VERSION"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ inputs.version }}" ]; then
+              VERSION="${{ inputs.version }}"
+            else
+              VERSION="$CARGO_VERSION"
+            fi
+
+            if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+              echo "Tag v$VERSION already exists — skipping"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+              echo "tag_exists=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "tag_exists=false" >> $GITHUB_OUTPUT
+            fi
+
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+            if [ "${{ inputs.prerelease }}" = "true" ] || [[ "$VERSION" == *"-"* ]]; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+
+          else
+            VERSION="$CARGO_VERSION"
+
+            if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+              echo "Tag v$VERSION already exists — skipping"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+              echo "tag_exists=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "tag_exists=false" >> $GITHUB_OUTPUT
+            fi
+
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+            if [[ "$VERSION" == *"-"* ]]; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # ── Version consistency ──────────────────────────────────────────────
+  version-check:
+    name: Version Check
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should_release == 'true'
+    uses: ./.github/workflows/version-check.yml
+
+  # ── Build binaries ──────────────────────────────────────────────────
+  build:
+    needs: [check-trigger, version-check]
+    if: needs.check-trigger.outputs.should_release == 'true'
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_ext: ""
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary_ext: ""
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_ext: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install musl-tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools musl-dev
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release binaries
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+        run: cargo build --workspace --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: matrix.os != 'windows-latest'
+        env:
+          VERSION: ${{ needs.check-trigger.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          ARCHIVE="spec-store-${TARGET}-v${VERSION}.tar.gz"
+          tar -czf "$ARCHIVE" \
+            -C "target/${TARGET}/release" \
+            "spec-store${{ matrix.binary_ext }}" \
+            "spec-store-mcp${{ matrix.binary_ext }}"
+          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        env:
+          VERSION: ${{ needs.check-trigger.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        shell: pwsh
+        run: |
+          $ARCHIVE = "spec-store-${env:TARGET}-v${env:VERSION}.zip"
+          Compress-Archive -Path "target/${env:TARGET}/release/spec-store${{ matrix.binary_ext }}", "target/${env:TARGET}/release/spec-store-mcp${{ matrix.binary_ext }}" -DestinationPath $ARCHIVE -Force
+          echo "ARCHIVE=$ARCHIVE" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-store-${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+  # ── Create GitHub release ────────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    needs: [check-trigger, version-check, build]
+    if: needs.check-trigger.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: spec-store-*
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) | while read file; do
+            sha256sum "$file" > "${file}.sha256"
+          done
+
+      - name: Extract changelog for version
+        id: changelog
+        env:
+          VERSION: ${{ needs.check-trigger.outputs.version }}
+        run: |
+          CHANGELOG=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '$d' || echo "")
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release v$VERSION"
+          fi
+          echo "$CHANGELOG" > release_notes.md
+
+      - name: Create tag
+        if: needs.check-trigger.outputs.tag_exists == 'false'
+        env:
+          VERSION: ${{ needs.check-trigger.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-trigger.outputs.version }}
+          name: v${{ needs.check-trigger.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+            artifacts/**/*.sha256
+          fail_on_unmatched_files: false
+          prerelease: ${{ needs.check-trigger.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true

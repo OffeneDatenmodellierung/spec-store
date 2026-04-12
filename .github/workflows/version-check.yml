@@ -1,0 +1,62 @@
+name: Version Check
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      version:
+        description: "The verified version"
+        value: ${{ jobs.verify-versions.outputs.version }}
+
+jobs:
+  verify-versions:
+    name: Verify Version Consistency
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract and verify versions
+        id: version
+        run: |
+          echo "Checking version consistency between Cargo.toml and CHANGELOG.md..."
+
+          # Get version from workspace Cargo.toml
+          CARGO_VERSION=$(grep -A 5 '^\[workspace\.package\]' Cargo.toml | grep '^version = ' | head -1 | sed 's/version = "\(.*\)"/\1/')
+
+          # Get version from CHANGELOG.md (first ## [x.x.x] entry)
+          CHANGELOG_VERSION=$(grep -E '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | sed -E 's/^## \[([0-9]+\.[0-9]+\.[0-9]+)\].*/\1/' || echo "")
+
+          echo "Versions found:"
+          echo "  Cargo.toml:    $CARGO_VERSION"
+          echo "  CHANGELOG.md:  ${CHANGELOG_VERSION:-'(not found)'}"
+
+          ERRORS=0
+
+          if [ -z "$CHANGELOG_VERSION" ]; then
+            echo "::error::No version found in CHANGELOG.md. Please add an entry like: ## [0.2.0] - 2026-04-12"
+            ERRORS=$((ERRORS + 1))
+          elif [ "$CARGO_VERSION" != "$CHANGELOG_VERSION" ]; then
+            echo "::error::Cargo.toml ($CARGO_VERSION) != CHANGELOG.md ($CHANGELOG_VERSION)"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG_VERSION=${GITHUB_REF#refs/tags/v}
+            echo "  Tag version:   $TAG_VERSION"
+            if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
+              echo "::error::Tag version ($TAG_VERSION) does not match Cargo.toml ($CARGO_VERSION)"
+              ERRORS=$((ERRORS + 1))
+            fi
+          fi
+
+          if [ $ERRORS -gt 0 ]; then
+            echo ""
+            echo "Version consistency check failed with $ERRORS error(s)"
+            exit 1
+          fi
+
+          echo ""
+          echo "All versions consistent: $CARGO_VERSION"
+          echo "version=$CARGO_VERSION" >> $GITHUB_OUTPUT
