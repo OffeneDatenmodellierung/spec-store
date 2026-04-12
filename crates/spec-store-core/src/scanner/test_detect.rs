@@ -46,33 +46,36 @@ fn find_block_end(lines: &[&str], start_idx: usize) -> usize {
     lines.len()
 }
 
-/// Check if a Rust function at `fn_line` (1-indexed) is a test.
-pub fn is_test_rust(source: &str, fn_line: usize, cfg_test_ranges: &[(usize, usize)]) -> bool {
-    // Check if inside a #[cfg(test)] module
-    if cfg_test_ranges
+fn is_test_attribute(line: &str) -> bool {
+    let t = line.trim();
+    t == "#[test]" || t.starts_with("#[tokio::test") || t.starts_with("#[rstest")
+}
+
+fn in_cfg_test_range(fn_line: usize, ranges: &[(usize, usize)]) -> bool {
+    ranges
         .iter()
         .any(|&(start, end)| fn_line >= start && fn_line <= end)
-    {
+}
+
+/// Check if a Rust function at `fn_line` (1-indexed) is a test.
+pub fn is_test_rust(source: &str, fn_line: usize, cfg_test_ranges: &[(usize, usize)]) -> bool {
+    if in_cfg_test_range(fn_line, cfg_test_ranges) {
         return true;
     }
+    has_test_attribute_above(source, fn_line)
+}
 
-    // Scan up to 5 lines backward for test attributes
+fn has_test_attribute_above(source: &str, fn_line: usize) -> bool {
     let lines: Vec<&str> = source.lines().collect();
-    let fn_idx = fn_line.saturating_sub(1); // convert to 0-indexed
+    let fn_idx = fn_line.saturating_sub(1);
     let scan_start = fn_idx.saturating_sub(5);
 
     for i in (scan_start..fn_idx).rev() {
-        if i >= lines.len() {
-            continue;
-        }
-        let trimmed = lines[i].trim();
-        if trimmed == "#[test]"
-            || trimmed.starts_with("#[tokio::test")
-            || trimmed.starts_with("#[rstest")
-        {
+        let Some(line) = lines.get(i) else { continue };
+        if is_test_attribute(line) {
             return true;
         }
-        // Stop at blank lines or closing braces (we've gone past attributes)
+        let trimmed = line.trim();
         if trimmed.is_empty() || trimmed == "}" {
             break;
         }

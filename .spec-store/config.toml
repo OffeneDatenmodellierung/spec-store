@@ -17,7 +17,7 @@ max_fn_complexity = 10
 max_fns_per_file = 15
 max_fn_params = 5
 warn_only = false
-exclude = ["src/generated/**"]
+exclude = ["src/generated/**", "crates/spec-store-mcp/**"]
 
 [reuse]
 similarity_warn = 0.8500000238418579

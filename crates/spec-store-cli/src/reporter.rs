@@ -6,27 +6,42 @@ use spec_store_core::{
 };
 use std::collections::HashMap;
 
-pub struct ReportOptions {
+pub struct ReportInput<'a> {
+    pub coverage: &'a HashMap<String, FileCoverage>,
+    pub results: &'a [CheckResult],
+    pub config: &'a CoverageConfig,
+    pub baselines: &'a BaselineStore,
     pub show_passing: bool,
     pub sort_by_pct: bool,
 }
 
-impl Default for ReportOptions {
-    fn default() -> Self {
+impl<'a> ReportInput<'a> {
+    pub fn new(
+        coverage: &'a HashMap<String, FileCoverage>,
+        results: &'a [CheckResult],
+        config: &'a CoverageConfig,
+        baselines: &'a BaselineStore,
+    ) -> Self {
         Self {
+            coverage,
+            results,
+            config,
+            baselines,
             show_passing: true,
             sort_by_pct: true,
         }
     }
 }
 
-pub fn print_report(
-    coverage: &HashMap<String, FileCoverage>,
-    results: &[CheckResult],
-    config: &CoverageConfig,
-    baselines: &BaselineStore,
-    opts: &ReportOptions,
-) {
+pub fn print_report(input: &ReportInput) {
+    let ReportInput {
+        coverage,
+        results,
+        config,
+        baselines,
+        show_passing,
+        sort_by_pct,
+    } = input;
     let date = chrono::Utc::now().format("%Y-%m-%d");
     println!("\n{}", format!("COVERAGE REPORT  {date}").bold());
     println!(
@@ -43,7 +58,7 @@ pub fn print_report(
     println!("{}", "━".repeat(60));
 
     let mut sorted_results: Vec<_> = results.iter().collect();
-    if opts.sort_by_pct {
+    if *sort_by_pct {
         sorted_results.sort_by(|a, b| {
             a.pct()
                 .partial_cmp(&b.pct())
@@ -54,7 +69,7 @@ pub fn print_report(
     }
 
     for result in &sorted_results {
-        if !opts.show_passing && !result.is_failure() {
+        if !show_passing && !result.is_failure() {
             continue;
         }
         print_row(result, coverage, baselines);

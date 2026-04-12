@@ -1,3 +1,4 @@
+mod block_measure;
 pub mod quality;
 pub mod regex_scanner;
 pub mod test_detect;

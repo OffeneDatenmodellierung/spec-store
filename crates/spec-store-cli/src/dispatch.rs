@@ -1,5 +1,4 @@
 use crate::commands::*;
-use crate::reporter::ReportOptions;
 use clap::Parser;
 use colored::Colorize;
 use spec_store_core::{
@@ -118,13 +117,15 @@ fn cmd_catchup(args: CatchupArgs, ctx: &AppContext) -> anyhow::Result<()> {
     if args.auto_register {
         let count = result.missing.len();
         for f in &result.missing {
-            let _ = ctx.structured.register_fn(
-                &f.name,
-                &f.file,
-                f.line,
-                "(auto-registered)",
-                f.is_test,
-            );
+            let _ =
+                ctx.structured
+                    .register_fn(&spec_store_core::store::structured::RegisterFnInput {
+                        name: &f.name,
+                        file: &f.file,
+                        line: f.line,
+                        desc: "(auto-registered)",
+                        is_test: f.is_test,
+                    });
         }
         println!(
             "{} Auto-registered {} functions",
@@ -156,13 +157,12 @@ fn cmd_coverage(cmd: CoverageCommand, ctx: &mut AppContext) -> anyhow::Result<()
     match cmd {
         CoverageCommand::Report(args) => {
             let report = ops::check_coverage(ctx, args.from.as_deref())?;
-            crate::reporter::print_report(
+            crate::reporter::print_report(&crate::reporter::ReportInput::new(
                 &report.coverage,
                 &report.results,
                 &ctx.config.coverage,
                 &ctx.baseline,
-                &ReportOptions::default(),
-            );
+            ));
         }
         CoverageCommand::Check(args) => {
             let report = ops::check_coverage(ctx, args.from.as_deref())?;

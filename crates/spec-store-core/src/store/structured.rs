@@ -21,6 +21,14 @@ pub struct Worktree {
     pub claimed_at: String,
 }
 
+pub struct RegisterFnInput<'a> {
+    pub name: &'a str,
+    pub file: &'a str,
+    pub line: usize,
+    pub desc: &'a str,
+    pub is_test: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisteredFn {
     pub id: String,
@@ -180,22 +188,14 @@ impl StructuredStore {
             .collect()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn register_fn(
-        &self,
-        name: &str,
-        file: &str,
-        line: usize,
-        desc: &str,
-        is_test: bool,
-    ) -> Result<String> {
+    pub fn register_fn(&self, input: &RegisterFnInput) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
         self.conn
             .execute(
                 "INSERT OR REPLACE INTO functions (id, name, file, line, description, is_test, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![id, name, file, line as i64, desc, is_test, now],
+                params![id, input.name, input.file, input.line as i64, input.desc, input.is_test, now],
             )
             .map_err(|e| SpecStoreError::Database(e.to_string()))?;
         Ok(id)
@@ -308,13 +308,13 @@ mod tests {
     fn register_and_list_functions() {
         let store = StructuredStore::open_in_memory().unwrap();
         store
-            .register_fn(
-                "validate_stake",
-                "src/risk.rs",
-                42,
-                "Validates stake limit",
-                false,
-            )
+            .register_fn(&RegisterFnInput {
+                name: "validate_stake",
+                file: "src/risk.rs",
+                line: 42,
+                desc: "Validates stake limit",
+                is_test: false,
+            })
             .unwrap();
         let fns = store.list_functions().unwrap();
         assert_eq!(fns.len(), 1);

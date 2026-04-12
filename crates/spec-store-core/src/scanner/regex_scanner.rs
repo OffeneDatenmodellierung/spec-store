@@ -76,7 +76,7 @@ fn ts_fn_re() -> &'static Regex {
         Regex::new(r"(?m)^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)").unwrap()
     })
 }
-fn complexity_re() -> &'static Regex {
+pub fn complexity_re() -> &'static Regex {
     COMPLEXITY.get_or_init(|| Regex::new(r"\b(if|else if|while|for|loop|match)\b|&&|\|\|").unwrap())
 }
 fn rust_params_re() -> &'static Regex {
@@ -184,62 +184,7 @@ fn byte_offset_to_line(source: &str, offset: usize) -> usize {
     source[..offset].chars().filter(|&c| c == '\n').count() + 1
 }
 
-fn measure_block(lines: &[&str], start_line: usize) -> (usize, usize) {
-    let idx = start_line.saturating_sub(1);
-    let line_count = count_block_lines(lines, idx);
-    // Count complexity only within the function's actual lines
-    let snippet: String = lines
-        .iter()
-        .skip(idx)
-        .take(line_count)
-        .cloned()
-        .collect::<Vec<_>>()
-        .join("\n");
-    let complexity = complexity_re().find_iter(&snippet).count().min(50) + 1;
-    (line_count, complexity)
-}
-
-fn count_block_lines(lines: &[&str], start: usize) -> usize {
-    let mut brace_depth: i32 = 0;
-    let mut found_open = false;
-    let mut count = 0;
-
-    for line in lines.iter().skip(start) {
-        count += 1;
-        for ch in line.chars() {
-            if ch == '{' {
-                brace_depth += 1;
-                found_open = true;
-            } else if ch == '}' {
-                brace_depth -= 1;
-                // Closing brace of the function
-                if found_open && brace_depth == 0 {
-                    return count;
-                }
-            }
-        }
-        // Python: indentation-based (no braces)
-        if !found_open && count > 1 {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            // For Python, check if we've returned to the same or lesser indent
-            let base = lines
-                .get(start)
-                .map(|l| l.chars().take_while(|c| *c == ' ').count())
-                .unwrap_or(0);
-            let depth = line.chars().take_while(|c| *c == ' ').count();
-            if depth <= base && !trimmed.starts_with('#') && !trimmed.starts_with("def ") {
-                return count.saturating_sub(1).max(1);
-            }
-        }
-        if count > 200 {
-            break;
-        }
-    }
-    count
-}
+use super::block_measure::measure_block;
 
 #[cfg(test)]
 mod tests {
