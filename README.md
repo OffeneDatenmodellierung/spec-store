@@ -1,56 +1,70 @@
 # spec-store
 
-A codebase specification registry with semantic search, quality gates, and multi-agent worktree coordination. Designed to prevent code duplication, enforce coverage, and help AI agents (and junior developers) work safely in parallel on a shared codebase.
+A codebase specification registry with semantic search, quality gates, test tracking,
+and multi-agent worktree coordination. Prevents code duplication, enforces coverage,
+and helps AI agents and developers work safely in parallel.
 
 ## Install
 
 ```bash
-cargo install --path .
+cargo install --path crates/spec-store-cli
 spec-store init
 ```
 
-`init` writes `.githooks/` and sets `git config core.hooksPath .githooks/` so every team member gets the hooks automatically on clone.
+`init` creates `.spec-store/config.toml`, installs git hooks to `.githooks/`, and sets
+`core.hooksPath` so every team member gets the hooks on clone.
 
 ## Core Commands
 
 ```bash
-# Semantic search before writing anything new
+# Search before writing anything new
 spec-store search "validate a bet stake against customer limits"
 
-# Register a function
+# Register a function (YOU provide the description)
 spec-store register fn --name validate_stake --file src/risk.rs --line 42 --desc "Validates stake vs limit"
 
 # Record an architectural decision
-spec-store decision add "Use HMAC-SHA256 for all webhook tokens, no exceptions" --tags security,tokens
+spec-store decision add "Use HMAC-SHA256 for all webhook tokens" --tags security,tokens
 
 # Scan for unregistered functions
-spec-store catchup --dry-run
-spec-store catchup --ai-describe   # use Claude to auto-generate descriptions
+spec-store catchup --path src/
+spec-store catchup --staged --fail-on-missing   # staged files only (for hooks)
+spec-store catchup --auto-register              # auto-register all found
 
-# Coverage gates
-spec-store coverage report         # full per-file report
-spec-store coverage check          # enforce 85% floor + ratchet (used by pre-push hook)
-spec-store coverage baseline       # set baseline from current lcov.info
+# Coverage gates (requires lcov.info — run tests first)
+cargo llvm-cov --lcov --output-path lcov.info
+spec-store coverage report              # grouped by folder
+spec-store coverage report --json       # machine-readable JSON
+spec-store coverage check               # enforce 85% floor + ratchet
+spec-store coverage baseline            # set baseline from current lcov.info
 
 # Quality gates
-spec-store quality check --staged  # check staged files (used by pre-commit hook)
-spec-store quality report          # full project quality summary
+spec-store quality check --staged       # staged files only (pre-commit hook)
+spec-store quality check --path src/    # all source files
+spec-store quality report               # full project summary
 
 # Multi-agent worktree coordination
-spec-store worktree claim feat/spend --contract src/contracts/spend.yaml --owner agent-2
-spec-store worktree list
+spec-store worktree claim feat/spend --contract src/spend --owner agent-2
+spec-store worktree list                # shows spec-store claims + git worktrees
+spec-store worktree verify              # check staged files against claims
 spec-store worktree release feat/spend
 
-# Generate just-in-time agent context
-spec-store context generate --worktree feat/spend --output AGENTS.md
-
-# Interactive intent capture
-spec-store interview --scope project   # new project bootstrap
-spec-store interview --scope feature   # before starting a new feature
+# Generate agent context
+spec-store context --output AGENTS.md
 
 # Overall health
 spec-store status
 ```
+
+## Agent Integration
+
+spec-store integrates with AI agents via a **skill** (`.agents/skills/spec-store/`),
+not an MCP server. The skill teaches agents the workflow; agents call `spec-store` via
+shell commands. Works with Claude Code, Zed, and any agent that supports
+[skillsmcp](https://github.com/aviddiviner/skillsmcp) or reads `.agents/skills/`.
+
+**spec-store does NOT do AI** — it stores, searches, and enforces. The calling agent
+provides function descriptions when registering.
 
 ## Configuration
 
@@ -58,27 +72,21 @@ spec-store status
 
 ```toml
 [coverage]
-min_per_file      = 85.0      # per-file floor
-ratchet           = true      # baselines can only increase
-fail_on_regression = true
+min_per_file       = 85.0     # per-file floor
+ratchet            = true     # baselines can only increase
+fail_on_regression = true     # treat regressions as errors
 
 [quality]
-max_file_lines    = 300
-max_fn_lines      = 50
-max_fn_complexity = 10
-max_fns_per_file  = 15
-max_fn_params     = 5
+max_file_lines     = 300
+max_fn_lines       = 50
+max_fn_complexity  = 10
+max_fns_per_file   = 15       # production functions only (tests excluded)
+max_fn_params      = 5
 
 [reuse]
-similarity_warn   = 0.85      # yellow warning
-similarity_block  = 0.95      # blocks commit
-
-[ai]
-provider          = "claude"  # claude | lightllm | none
-model             = "claude-sonnet-4-20250514"
+similarity_warn    = 0.85     # yellow warning
+similarity_block   = 0.95     # blocks commit
 ```
-
-Set `ANTHROPIC_API_KEY` for Claude features. For local models, set `provider = "lightllm"` and configure the `[ai.lightllm]` section.
 
 ## Git Hooks
 
@@ -89,20 +97,22 @@ Set `ANTHROPIC_API_KEY` for Claude features. For local models, set `provider = "
 | `post-merge` | Auto-register new functions + update baselines |
 | `post-checkout` | Regenerate `AGENTS.md` for the new branch |
 
-Hooks live in `.githooks/` (committed). New team members activate them with `spec-store init`.
+Hooks live in `.githooks/` (committed). Activated by `spec-store init`.
 
-## AI Integration
+## Test Tracking
 
-spec-store works offline — search and quality gates need no API. Claude (or any OpenAI-compatible model via lightllm) is used for:
+Functions are tagged `is_test` via language-specific detection:
+- **Rust**: `#[test]`, `#[tokio::test]`, `#[rstest]`, `#[cfg(test)]` modules
+- **Python**: `test_` prefix, `@pytest.mark` decorators
+- **TypeScript**: `test_` prefix, `.test.ts`/`.spec.ts` files
 
-- `catchup --ai-describe` — auto-generate function descriptions
-- `interview` — guided Q&A that populates decisions and feature records
-- Future: suggest splits for oversized files
-
-## Dogfooding
-
-spec-store enforces its own gates on itself. If a PR breaks any rule, the pre-push hook blocks it. Coverage is tracked per-file and cannot regress.
+Quality gates only apply to production functions — test functions are excluded from
+line count, complexity, function count, and parameter checks.
 
 ## Architecture
 
-See `CLAUDE.md` for the full module map and architectural decisions.
+Two-crate workspace:
+- `spec-store-core` — library with all business logic (stores, scanners, coverage, quality gates)
+- `spec-store-cli` — thin CLI binary with coloured output
+
+See `.agents/skills/spec-store/references/architecture.md` for the full module map.

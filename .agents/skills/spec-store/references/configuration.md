@@ -41,7 +41,6 @@ warn_only = false            # If true, violations are warnings not errors
 # Files excluded from quality checks
 exclude = [
     "src/generated/**",
-    "crates/spec-store-mcp/**",
 ]
 ```
 

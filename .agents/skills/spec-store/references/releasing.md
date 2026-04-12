@@ -52,6 +52,6 @@ Every user-visible change MUST have an entry in `CHANGELOG.md` before committing
 
 ## Versioning
 
-- **Major** (X.0.0): Breaking changes to CLI flags, MCP tool schemas, or config format
-- **Minor** (0.X.0): New features, new tools, new CLI commands
+- **Major** (X.0.0): Breaking changes to CLI flags or config format
+- **Minor** (0.X.0): New features, new CLI commands
 - **Patch** (0.0.X): Bug fixes, documentation, internal refactoring
