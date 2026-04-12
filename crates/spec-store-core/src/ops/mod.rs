@@ -132,8 +132,18 @@ pub fn catchup(
 fn scan_staged_functions(root: &std::path::Path) -> Vec<FunctionInfo> {
     crate::git::staged_files(root)
         .iter()
-        .filter_map(|f| scanner::scan_file(&root.join(f)).ok())
-        .flatten()
+        .flat_map(|relative| {
+            let abs = root.join(relative);
+            scanner::scan_file(&abs)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|mut fi| {
+                    // Use the relative path so it matches registry keys
+                    fi.file = relative.clone();
+                    fi
+                })
+                .collect::<Vec<_>>()
+        })
         .collect()
 }
 

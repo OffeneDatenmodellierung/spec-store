@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-echo "spec-store: checking coverage and worktree conflicts..."
-spec-store coverage check || exit 1
+echo "spec-store: checking worktree conflicts..."
 spec-store worktree verify || exit 1
+if [ -f lcov.info ]; then
+  echo "spec-store: checking coverage gates..."
+  spec-store coverage check || exit 1
+else
+  echo "spec-store: lcov.info not found, skipping coverage check (run cargo llvm-cov to generate)"
+fi
