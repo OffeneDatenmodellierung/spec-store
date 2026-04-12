@@ -243,4 +243,68 @@ mod tests {
         assert!(is_source_file(Path::new("baz.ts")));
         assert!(!is_source_file(Path::new("data.json")));
     }
+
+    #[test]
+    fn check_file_on_clean_source() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("clean.rs");
+        std::fs::write(&src, "fn hello() { println!(\"hi\"); }\n").unwrap();
+        let result = check_file(&src, &default_config()).unwrap();
+        assert!(!result.has_errors());
+    }
+
+    #[test]
+    fn check_file_skips_excluded() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src = dir.path().join("generated.rs");
+        std::fs::write(&src, "fn a(){}\nfn b(){}\n".repeat(20)).unwrap();
+        let mut cfg = default_config();
+        cfg.exclude = vec!["generated".into()];
+        let result = check_file(&src, &cfg).unwrap();
+        assert!(result.violations.is_empty());
+    }
+
+    #[test]
+    fn check_dir_finds_violations() {
+        let dir = tempfile::TempDir::new().unwrap();
+        // Create a file that's too long
+        let long_fn = format!("fn big() {{\n{}\n}}\n", "let x = 1;\n".repeat(60));
+        std::fs::write(dir.path().join("big.rs"), long_fn).unwrap();
+        let result = check_dir(dir.path(), &default_config()).unwrap();
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn check_function_complexity_violation() {
+        let info = FunctionInfo {
+            name: "complex".into(),
+            file: "f.rs".into(),
+            line: 1,
+            line_count: 10,
+            param_count: 0,
+            complexity: 20,
+            is_test: false,
+        };
+        let mut v = vec![];
+        check_function(&info, &default_config(), &mut v);
+        assert!(v.iter().any(|v| v.message.contains("complexity")));
+    }
+
+    #[test]
+    fn check_function_params_warning() {
+        let info = FunctionInfo {
+            name: "many_params".into(),
+            file: "f.rs".into(),
+            line: 1,
+            line_count: 5,
+            param_count: 8,
+            complexity: 1,
+            is_test: false,
+        };
+        let mut v = vec![];
+        check_function(&info, &default_config(), &mut v);
+        assert!(v
+            .iter()
+            .any(|v| v.is_warning && v.message.contains("params")));
+    }
 }

@@ -108,6 +108,111 @@ mod tests {
     }
 
     #[test]
+    fn list_tests_on_tempdir_with_test_fn() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("example.rs"),
+            "#[test]\nfn test_thing() {\n}\n\nfn prod_fn() {\n}\n",
+        )
+        .unwrap();
+        let all = crate::scanner::scan_dir_functions(dir.path());
+        let tests = list_tests(dir.path());
+        assert_eq!(all.len(), 2, "should find 2 functions total");
+        assert_eq!(tests.len(), 1, "should find 1 test function");
+        assert_eq!(tests[0].name, "test_thing");
+    }
+
+    #[test]
+    fn list_tests_empty_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        assert!(list_tests(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn test_mappings_with_filter() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            dir.path().join("example.rs"),
+            "fn validate() {}\n#[test]\nfn test_validate() {}\n#[test]\nfn test_other() {}\n",
+        )
+        .unwrap();
+        let ctx = crate::AppContext {
+            root: dir.path().to_path_buf(),
+            config: crate::config::Config::default(),
+            structured: crate::store::StructuredStore::open_in_memory().unwrap(),
+            baseline: crate::store::BaselineStore::new_empty(),
+            vectors: crate::store::LocalVectorStore::new_empty(),
+        };
+        let all = test_mappings(&ctx, Some(dir.path().to_str().unwrap()), None);
+        assert!(!all.is_empty());
+        let filtered = test_mappings(&ctx, Some(dir.path().to_str().unwrap()), Some("validate"));
+        assert!(filtered
+            .iter()
+            .all(|m| m.function_name.contains("validate")));
+    }
+
+    #[test]
+    fn function_coverage_from_lcov_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("lib.rs"),
+            "pub fn foo() {\n    let x = 1;\n    let y = 2;\n}\n",
+        )
+        .unwrap();
+        let lcov_content = format!(
+            "SF:{}/src/lib.rs\nDA:1,1\nDA:2,1\nDA:3,0\nDA:4,1\nLF:4\nLH:3\nend_of_record\n",
+            dir.path().display()
+        );
+        std::fs::write(dir.path().join("lcov.info"), lcov_content).unwrap();
+        let ctx = crate::AppContext {
+            root: dir.path().to_path_buf(),
+            config: crate::config::Config::default(),
+            structured: crate::store::StructuredStore::open_in_memory().unwrap(),
+            baseline: crate::store::BaselineStore::new_empty(),
+            vectors: crate::store::LocalVectorStore::new_empty(),
+        };
+        // Should not error — coverage may or may not match depending on paths
+        let _results = function_coverage(&ctx, Some("lcov.info"), None).unwrap();
+    }
+
+    #[test]
+    fn function_coverage_with_filter() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir(&src_dir).unwrap();
+        std::fs::write(src_dir.join("lib.rs"), "fn foo() {\n}\nfn bar() {\n}\n").unwrap();
+        std::fs::write(
+            dir.path().join("lcov.info"),
+            "SF:src/lib.rs\nDA:1,1\nDA:2,1\nDA:3,1\nDA:4,1\nLF:4\nLH:4\nend_of_record\n",
+        )
+        .unwrap();
+        let ctx = crate::AppContext {
+            root: dir.path().to_path_buf(),
+            config: crate::config::Config::default(),
+            structured: crate::store::StructuredStore::open_in_memory().unwrap(),
+            baseline: crate::store::BaselineStore::new_empty(),
+            vectors: crate::store::LocalVectorStore::new_empty(),
+        };
+        let filtered = function_coverage(&ctx, Some("lcov.info"), Some("foo")).unwrap();
+        assert!(filtered.iter().all(|r| r.name.contains("foo")));
+    }
+
+    #[test]
+    fn function_coverage_missing_lcov_errors() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ctx = crate::AppContext {
+            root: dir.path().to_path_buf(),
+            config: crate::config::Config::default(),
+            structured: crate::store::StructuredStore::open_in_memory().unwrap(),
+            baseline: crate::store::BaselineStore::new_empty(),
+            vectors: crate::store::LocalVectorStore::new_empty(),
+        };
+        assert!(function_coverage(&ctx, Some("nonexistent.info"), None).is_err());
+    }
+
+    #[test]
     fn parse_detail_extracts_da_lines() {
         let content = "\
 SF:src/a.rs

@@ -40,3 +40,23 @@ impl AppContext {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_from_creates_context() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ctx = AppContext::load_from(dir.path().to_path_buf()).unwrap();
+        assert_eq!(ctx.root, dir.path());
+        assert_eq!(ctx.config.coverage.min_per_file, 85.0);
+    }
+
+    #[test]
+    fn load_finds_root() {
+        // load() walks up from cwd — should succeed from any dir
+        let ctx = AppContext::load();
+        assert!(ctx.is_ok());
+    }
+}

@@ -104,4 +104,64 @@ mod tests {
             staged_files_conflict_with_worktrees(&staged, &worktrees, Some("feat/auth"));
         assert!(conflicts.is_empty());
     }
+
+    #[test]
+    fn staged_files_returns_empty_in_non_git_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        assert!(staged_files(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn current_branch_returns_none_in_non_git_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        assert!(current_branch(dir.path()).is_none());
+    }
+
+    #[test]
+    fn staged_files_works_in_git_repo() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::process::Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        // No staged files in empty repo
+        assert!(staged_files(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn current_branch_works_in_git_repo() {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::process::Command::new("git")
+            .args(["init", "--quiet", "-b", "main"])
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        // Need at least one commit for branch to exist
+        std::fs::write(dir.path().join("README"), "test").unwrap();
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        std::process::Command::new("git")
+            .args(["commit", "-m", "init", "--no-gpg-sign"])
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        assert_eq!(current_branch(dir.path()), Some("main".into()));
+    }
+
+    #[test]
+    fn no_conflict_when_worktree_has_no_contract() {
+        let staged = vec!["src/foo.rs".into()];
+        let worktrees = vec![Worktree {
+            branch: "feat/x".into(),
+            contract: None,
+            owner: None,
+            claimed_at: String::new(),
+        }];
+        let conflicts = staged_files_conflict_with_worktrees(&staged, &worktrees, None);
+        assert!(conflicts.is_empty());
+    }
 }

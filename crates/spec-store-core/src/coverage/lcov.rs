@@ -200,4 +200,57 @@ end_of_record
         let result = check_age(Path::new("/nonexistent/lcov.info"), 60);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn check_age_passes_for_fresh_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("lcov.info");
+        std::fs::write(&path, "SF:a.rs\nLF:1\nLH:1\nend_of_record\n").unwrap();
+        assert!(check_age(&path, 60).is_ok());
+    }
+
+    #[test]
+    fn parse_reads_file_from_disk() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("lcov.info");
+        std::fs::write(&path, SAMPLE).unwrap();
+        let result = parse(&path).unwrap();
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn parse_fails_for_missing_file() {
+        assert!(parse(Path::new("/nonexistent/lcov.info")).is_err());
+    }
+
+    #[test]
+    fn parse_detail_content_extracts_da_lines() {
+        let content = "SF:src/a.rs\nDA:1,5\nDA:2,0\nDA:3,1\nLF:3\nLH:2\nend_of_record\n";
+        let result = parse_detail_content(content).unwrap();
+        let lines = &result["src/a.rs"];
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].hits, 5);
+        assert_eq!(lines[1].hits, 0);
+    }
+
+    #[test]
+    fn parse_detail_content_handles_empty() {
+        assert!(parse_detail_content("").unwrap().is_empty());
+    }
+
+    #[test]
+    fn parse_detail_content_handles_invalid_da() {
+        let content = "SF:a.rs\nDA:bad,data\nDA:1,5\nend_of_record\n";
+        let result = parse_detail_content(content).unwrap();
+        assert_eq!(result["a.rs"].len(), 1);
+    }
+
+    #[test]
+    fn parse_detail_reads_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("lcov.info");
+        std::fs::write(&path, "SF:a.rs\nDA:1,1\nend_of_record\n").unwrap();
+        let result = parse_detail(&path).unwrap();
+        assert_eq!(result["a.rs"].len(), 1);
+    }
 }

@@ -223,4 +223,46 @@ mod tests {
         let out = generate(Path::new("."), &store, &bl, &opts).unwrap();
         assert!(out.contains("spec-store search"));
     }
+
+    #[test]
+    fn write_creates_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        write(dir.path(), "test content", "output.md").unwrap();
+        let content = std::fs::read_to_string(dir.path().join("output.md")).unwrap();
+        assert_eq!(content, "test content");
+    }
+
+    #[test]
+    fn write_absolute_path() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let abs = dir.path().join("abs.md");
+        write(dir.path(), "abs content", abs.to_str().unwrap()).unwrap();
+        assert!(abs.exists());
+    }
+
+    #[test]
+    fn coverage_section_with_baselines() {
+        let store = make_store();
+        let mut bl = BaselineStore::new_empty();
+        bl.set("src/a.rs", 90.0);
+        let opts = ContextOptions {
+            min_coverage: 85.0,
+            ..ContextOptions::default()
+        };
+        let out = generate(Path::new("."), &store, &bl, &opts).unwrap();
+        assert!(out.contains("Coverage"));
+        assert!(out.contains("85.0%"));
+    }
+
+    #[test]
+    fn multiple_decisions_truncated() {
+        let store = make_store();
+        for i in 0..12 {
+            store.add_decision(&format!("Decision {i}"), &[]).unwrap();
+        }
+        let bl = BaselineStore::new_empty();
+        let opts = ContextOptions::default();
+        let out = generate(Path::new("."), &store, &bl, &opts).unwrap();
+        assert!(out.contains("2 more"));
+    }
 }
