@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "spec-store: running quality gates on staged files..."
+spec-store quality check --staged || exit 1
+spec-store catchup --staged --fail-on-missing || exit 1

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "spec-store: updating registry after merge..."
+spec-store catchup --auto-register
+spec-store coverage baseline --update

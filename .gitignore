@@ -1,0 +1,9 @@
+/target
+lcov.info
+coverage-html/
+*.profraw
+*.profdata
+
+# spec-store runtime state (store and baselines committed, vectors regenerated)
+.spec-store/store.db
+.spec-store/vectors.json

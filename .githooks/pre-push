@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "spec-store: checking coverage and worktree conflicts..."
+spec-store coverage check || exit 1
+spec-store worktree verify || exit 1

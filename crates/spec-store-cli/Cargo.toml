@@ -1,0 +1,18 @@
+[package]
+name = "spec-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI for spec-store: quality gates, coverage, and agent coordination"
+
+[[bin]]
+name = "spec-store"
+path = "src/main.rs"
+
+[dependencies]
+spec-store-core.workspace = true
+anyhow.workspace          = true
+tokio.workspace           = true
+clap.workspace            = true
+colored.workspace         = true
+chrono.workspace          = true

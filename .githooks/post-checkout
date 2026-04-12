@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PREV=$1; NEW=$2; IS_BRANCH=$3
+if [ "$IS_BRANCH" = "1" ] && [ "$PREV" != "$NEW" ]; then
+  echo "spec-store: regenerating agent context for $(git branch --show-current)..."
+  spec-store context --output AGENTS.md
+fi
