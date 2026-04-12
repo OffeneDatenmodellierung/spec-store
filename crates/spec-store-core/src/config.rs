@@ -7,12 +7,6 @@ pub struct Config {
     pub coverage: CoverageConfig,
     pub quality: QualityConfig,
     pub reuse: ReuseConfig,
-    /// Legacy — AI is handled by the calling agent, not spec-store.
-    #[serde(default)]
-    pub ai: AiConfig,
-    /// Legacy — embeddings use local word-bag; this section is ignored.
-    #[serde(default)]
-    pub embeddings: EmbeddingsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,29 +34,6 @@ pub struct QualityConfig {
 pub struct ReuseConfig {
     pub similarity_warn: f32,
     pub similarity_block: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct AiConfig {
-    #[serde(default)]
-    pub provider: String,
-    #[serde(default)]
-    pub model: String,
-    pub lightllm: Option<LightllmConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LightllmConfig {
-    pub base_url: String,
-    pub model: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct EmbeddingsConfig {
-    #[serde(default)]
-    pub provider: String,
-    #[serde(default)]
-    pub model: String,
 }
 
 impl Default for Config {
@@ -93,8 +64,6 @@ impl Default for Config {
                 similarity_warn: 0.85,
                 similarity_block: 0.95,
             },
-            ai: AiConfig::default(),
-            embeddings: EmbeddingsConfig::default(),
         }
     }
 }

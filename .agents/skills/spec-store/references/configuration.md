@@ -53,13 +53,6 @@ similarity_warn = 0.85       # Warn if new function is >= 85% similar to existin
 similarity_block = 0.95      # Block if new function is >= 95% similar
 ```
 
-## Legacy (ignored)
-
-```toml
-[ai]          # AI is handled by the calling agent, not spec-store
-[embeddings]  # Local word-bag embeddings are used; this section is ignored
-```
-
 ## Output formats
 
 Coverage report supports `--json` for machine-readable output:
