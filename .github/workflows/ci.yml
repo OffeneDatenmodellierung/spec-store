@@ -98,7 +98,7 @@ jobs:
       - name: spec-store — quality gates
         run: spec-store quality check --path crates/
 
-      - name: spec-store — catchup
+      - name: spec-store — catchup (no unregistered functions)
         run: spec-store catchup --path crates/ --fail-on-missing
 
   # ── Cross-platform build ─────────────────────────────────────────────

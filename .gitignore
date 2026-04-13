@@ -4,7 +4,5 @@ coverage-html/
 *.profraw
 *.profdata
 
-# spec-store runtime state (machine-specific, not committed)
-.spec-store/store.db
-.spec-store/vectors.json
-.spec-store/baselines.json
+# spec-store state is committed (store.db, vectors.json, baselines.json)
+# These are the project's function registry and coverage baselines.
