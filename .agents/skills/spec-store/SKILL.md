@@ -77,6 +77,11 @@ function-to-test mapping, and per-function coverage.
 See [references/configuration.md](references/configuration.md) for coverage thresholds,
 quality limits, exclusion patterns, and `--json` output.
 
+## CI / GitHub Action
+
+See [references/ci-setup.md](references/ci-setup.md) for setting up spec-store
+in CI pipelines using the reusable GitHub Action.
+
 ## Architecture
 
 See [references/architecture.md](references/architecture.md) for module map and

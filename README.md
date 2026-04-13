@@ -56,6 +56,24 @@ spec-store context --output AGENTS.md
 spec-store status
 ```
 
+## CI / GitHub Action
+
+Add spec-store gates to any repo's CI pipeline:
+
+```yaml
+- name: spec-store gates
+  uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.3.0
+  with:
+    version: '0.3.0'
+    lcov-path: lcov.info
+    quality-path: src/
+```
+
+The action downloads a pinned release binary, runs quality gates, coverage checks,
+and catchup. No Rust toolchain needed — just your `lcov.info` from a prior test step.
+
+See `.agents/skills/spec-store/references/ci-setup.md` for full setup guide.
+
 ## Agent Integration
 
 spec-store integrates with AI agents via a **skill** (`.agents/skills/spec-store/`),
