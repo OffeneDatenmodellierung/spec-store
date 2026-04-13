@@ -1,0 +1,136 @@
+name: 'spec-store check'
+description: 'Run spec-store quality gates, coverage checks, and catchup against your codebase'
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  version:
+    description: 'spec-store version to download (e.g. 0.3.0)'
+    required: true
+  lcov-path:
+    description: 'Path to lcov.info file for coverage checks'
+    required: false
+    default: 'lcov.info'
+  check-quality:
+    description: 'Run quality gate checks'
+    required: false
+    default: 'true'
+  quality-path:
+    description: 'Path to check quality against (default: src/)'
+    required: false
+    default: 'src/'
+  check-coverage:
+    description: 'Run coverage gate checks (requires lcov file)'
+    required: false
+    default: 'true'
+  check-catchup:
+    description: 'Check for unregistered functions'
+    required: false
+    default: 'true'
+  catchup-path:
+    description: 'Path to scan for catchup (default: src/)'
+    required: false
+    default: 'src/'
+  fail-on-missing:
+    description: 'Fail if unregistered functions found'
+    required: false
+    default: 'true'
+  skip-download:
+    description: 'Skip binary download (use spec-store already on PATH)'
+    required: false
+    default: 'false'
+
+outputs:
+  quality-passed:
+    description: 'Whether quality gates passed'
+    value: ${{ steps.quality.outcome == 'success' }}
+  coverage-passed:
+    description: 'Whether coverage gates passed'
+    value: ${{ steps.coverage.outcome == 'success' }}
+  catchup-passed:
+    description: 'Whether all functions are registered'
+    value: ${{ steps.catchup.outcome == 'success' }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine platform
+      if: inputs.skip-download != 'true'
+      id: platform
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)  TARGET="x86_64-unknown-linux-gnu" ;;
+          macOS)  TARGET="aarch64-apple-darwin" ;;
+          Windows) TARGET="x86_64-pc-windows-msvc" ;;
+          *) echo "::error::Unsupported OS: ${{ runner.os }}"; exit 1 ;;
+        esac
+        echo "target=$TARGET" >> $GITHUB_OUTPUT
+
+    - name: Download spec-store
+      if: inputs.skip-download != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TARGET: ${{ steps.platform.outputs.target }}
+      run: |
+        REPO="OffeneDatenmodellierung/spec-store"
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          ARCHIVE="spec-store-${TARGET}-v${VERSION}.zip"
+          URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ARCHIVE}"
+          echo "Downloading ${URL}"
+          curl -sL "$URL" -o spec-store.zip
+          unzip -q spec-store.zip
+          echo "$PWD" >> $GITHUB_PATH
+        else
+          ARCHIVE="spec-store-${TARGET}-v${VERSION}.tar.gz"
+          URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ARCHIVE}"
+          echo "Downloading ${URL}"
+          curl -sL "$URL" | tar xz
+          chmod +x spec-store
+          echo "$PWD" >> $GITHUB_PATH
+        fi
+
+    - name: Verify installation
+      shell: bash
+      run: spec-store --version
+
+    - name: Initialise spec-store (if needed)
+      shell: bash
+      run: |
+        if [ ! -d ".spec-store" ]; then
+          spec-store init || true
+        fi
+
+    - name: Quality gates
+      id: quality
+      if: inputs.check-quality == 'true'
+      shell: bash
+      run: spec-store quality check --path "${{ inputs.quality-path }}"
+
+    - name: Coverage gates
+      id: coverage
+      if: inputs.check-coverage == 'true'
+      shell: bash
+      env:
+        LCOV_PATH: ${{ inputs.lcov-path }}
+      run: |
+        if [ -f "$LCOV_PATH" ]; then
+          rm -f .spec-store/baselines.json
+          spec-store coverage baseline --from "$LCOV_PATH"
+          spec-store coverage check --from "$LCOV_PATH"
+        else
+          echo "::warning::$LCOV_PATH not found, skipping coverage check"
+        fi
+
+    - name: Catchup
+      id: catchup
+      if: inputs.check-catchup == 'true'
+      shell: bash
+      run: |
+        if [ "${{ inputs.fail-on-missing }}" == "true" ]; then
+          spec-store catchup --path "${{ inputs.catchup-path }}" --fail-on-missing
+        else
+          spec-store catchup --path "${{ inputs.catchup-path }}"
+        fi

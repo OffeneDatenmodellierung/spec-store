@@ -86,21 +86,18 @@ jobs:
           path: lcov.info
           retention-days: 30
 
-      # Dogfood: run spec-store against itself
-      - name: Install spec-store
+      # Dogfood: build from source then use own action
+      - name: Install spec-store (from source)
         run: cargo install --path crates/spec-store-cli --debug
 
-      - name: spec-store — coverage gates
-        run: |
-          rm -f .spec-store/baselines.json
-          spec-store coverage baseline --from lcov.info
-          spec-store coverage check --from lcov.info
-
-      - name: spec-store — quality gates
-        run: spec-store quality check --path crates/
-
-      - name: spec-store — catchup (no unregistered functions)
-        run: spec-store catchup --path crates/ --fail-on-missing
+      - name: spec-store gates
+        uses: ./.github/actions/check
+        with:
+          version: '0.3.0'
+          skip-download: 'true'
+          lcov-path: lcov.info
+          quality-path: crates/
+          catchup-path: crates/
 
   # ── Cross-platform build ─────────────────────────────────────────────
   build-matrix:
