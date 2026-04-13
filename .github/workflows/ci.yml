@@ -92,6 +92,7 @@ jobs:
 
       - name: spec-store — coverage gates
         run: |
+          rm -f .spec-store/baselines.json
           spec-store coverage baseline --from lcov.info
           spec-store coverage check --from lcov.info
 
