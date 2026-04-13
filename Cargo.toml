@@ -3,7 +3,7 @@ members = ["crates/spec-store-core", "crates/spec-store-cli"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "Codebase spec registry with semantic search, quality gates, and agent coordination"

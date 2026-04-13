@@ -1,100 +1,112 @@
 {
   "baselines": {
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/reuse/enforcer.rs": {
-      "percentage": 86.98224852071006,
-      "updated_at": "2026-04-12T17:05:01.516867+00:00"
+    "crates/spec-store-core/src/ops/mod.rs": {
+      "percentage": 90.80459770114942,
+      "updated_at": "2026-04-13T09:32:38.446434+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-cli/src/reporter.rs": {
-      "percentage": 41.208791208791204,
-      "updated_at": "2026-04-12T17:05:01.516911+00:00"
+    "crates/spec-store-core/src/scanner/quality.rs": {
+      "percentage": 97.32824427480917,
+      "updated_at": "2026-04-13T09:32:38.446422+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/coverage/fn_coverage.rs": {
-      "percentage": 99.18032786885246,
-      "updated_at": "2026-04-12T17:05:01.516918+00:00"
+    "crates/spec-store-core/src/store/structured.rs": {
+      "percentage": 91.02564102564102,
+      "updated_at": "2026-04-13T09:32:38.446409+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/scanner/regex_scanner.rs": {
+    "crates/spec-store-core/src/ops/test_tracking.rs": {
+      "percentage": 81.86813186813187,
+      "updated_at": "2026-04-13T09:32:38.446425+00:00"
+    },
+    "crates/spec-store-cli/src/dispatch.rs": {
+      "percentage": 58.44155844155844,
+      "updated_at": "2026-04-13T09:32:38.446397+00:00"
+    },
+    "crates/spec-store-core/src/lib.rs": {
+      "percentage": 90.0,
+      "updated_at": "2026-04-13T09:32:38.446411+00:00"
+    },
+    "crates/spec-store-core/src/hooks/installer.rs": {
+      "percentage": 94.6236559139785,
+      "updated_at": "2026-04-13T09:32:38.446394+00:00"
+    },
+    "crates/spec-store-core/src/scanner/regex_scanner.rs": {
       "percentage": 98.49246231155779,
-      "updated_at": "2026-04-12T17:05:01.516915+00:00"
+      "updated_at": "2026-04-13T09:32:38.446430+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/ops/context_ops.rs": {
-      "percentage": 86.77685950413223,
-      "updated_at": "2026-04-12T17:05:01.516888+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/util.rs": {
-      "percentage": 100.0,
-      "updated_at": "2026-04-12T17:05:01.516894+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/context/generator.rs": {
-      "percentage": 78.65168539325843,
-      "updated_at": "2026-04-12T17:05:01.516861+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/scanner/mod.rs": {
-      "percentage": 100.0,
-      "updated_at": "2026-04-12T17:05:01.516869+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/config.rs": {
-      "percentage": 94.25287356321839,
-      "updated_at": "2026-04-12T17:05:01.516871+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/hooks/installer.rs": {
-      "percentage": 91.39784946236558,
-      "updated_at": "2026-04-12T17:05:01.516858+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/coverage/lcov.rs": {
-      "percentage": 77.3972602739726,
-      "updated_at": "2026-04-12T17:05:01.516907+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/scanner/block_measure.rs": {
+    "crates/spec-store-core/src/scanner/block_measure.rs": {
       "percentage": 92.42424242424242,
-      "updated_at": "2026-04-12T17:05:01.516886+00:00"
+      "updated_at": "2026-04-13T09:32:38.446424+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/coverage/checker.rs": {
+    "crates/spec-store-core/src/config.rs": {
+      "percentage": 94.11764705882352,
+      "updated_at": "2026-04-13T09:32:38.446429+00:00"
+    },
+    "crates/spec-store-core/src/coverage/checker.rs": {
       "percentage": 97.43589743589743,
-      "updated_at": "2026-04-12T17:05:01.516800+00:00"
+      "updated_at": "2026-04-13T09:32:38.446431+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/scanner/quality.rs": {
-      "percentage": 62.62626262626263,
-      "updated_at": "2026-04-12T17:05:01.516909+00:00"
+    "crates/spec-store-core/src/ops/coverage_ops.rs": {
+      "percentage": 86.4,
+      "updated_at": "2026-04-13T09:32:38.446413+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/ops/mod.rs": {
-      "percentage": 88.64628820960698,
-      "updated_at": "2026-04-12T17:05:01.516884+00:00"
+    "crates/spec-store-core/src/git.rs": {
+      "percentage": 98.4126984126984,
+      "updated_at": "2026-04-13T09:32:38.446415+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/store/structured.rs": {
-      "percentage": 86.75213675213675,
-      "updated_at": "2026-04-12T17:05:01.516916+00:00"
+    "crates/spec-store-core/src/ops/context_ops.rs": {
+      "percentage": 86.77685950413223,
+      "updated_at": "2026-04-13T09:32:38.446423+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/scanner/test_mapper.rs": {
-      "percentage": 99.18032786885246,
-      "updated_at": "2026-04-12T17:05:01.516920+00:00"
+    "crates/spec-store-core/src/ops/worktree_ops.rs": {
+      "percentage": 96.2406015037594,
+      "updated_at": "2026-04-13T09:32:38.446400+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/store/vector.rs": {
-      "percentage": 95.42483660130719,
-      "updated_at": "2026-04-12T17:05:01.516880+00:00"
+    "crates/spec-store-core/src/context/generator.rs": {
+      "percentage": 91.0377358490566,
+      "updated_at": "2026-04-13T09:32:38.446401+00:00"
     },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/ops/worktree_ops.rs": {
-      "percentage": 69.51219512195121,
-      "updated_at": "2026-04-12T17:05:01.516913+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/git.rs": {
-      "percentage": 65.38461538461539,
-      "updated_at": "2026-04-12T17:05:01.516881+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/scanner/test_detect.rs": {
-      "percentage": 95.77464788732394,
-      "updated_at": "2026-04-12T17:05:01.516922+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/store/baseline.rs": {
-      "percentage": 95.53571428571429,
-      "updated_at": "2026-04-12T17:05:01.516890+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/ops/test_tracking.rs": {
-      "percentage": 31.63265306122449,
-      "updated_at": "2026-04-12T17:05:01.516873+00:00"
-    },
-    "/Users/mark.olliver/GIT/spec-store/crates/spec-store-core/src/error.rs": {
+    "crates/spec-store-core/src/scanner/mod.rs": {
       "percentage": 100.0,
-      "updated_at": "2026-04-12T17:05:01.516862+00:00"
+      "updated_at": "2026-04-13T09:32:38.446428+00:00"
+    },
+    "crates/spec-store-core/src/error.rs": {
+      "percentage": 100.0,
+      "updated_at": "2026-04-13T09:32:38.446366+00:00"
+    },
+    "crates/spec-store-core/src/scanner/test_mapper.rs": {
+      "percentage": 99.18032786885246,
+      "updated_at": "2026-04-13T09:32:38.446410+00:00"
+    },
+    "crates/spec-store-core/src/store/vector.rs": {
+      "percentage": 95.42483660130719,
+      "updated_at": "2026-04-13T09:32:38.446402+00:00"
+    },
+    "crates/spec-store-core/src/coverage/lcov.rs": {
+      "percentage": 96.83257918552036,
+      "updated_at": "2026-04-13T09:32:38.446427+00:00"
+    },
+    "crates/spec-store-core/src/scanner/test_detect.rs": {
+      "percentage": 95.77464788732394,
+      "updated_at": "2026-04-13T09:32:38.446404+00:00"
+    },
+    "crates/spec-store-core/src/util.rs": {
+      "percentage": 100.0,
+      "updated_at": "2026-04-13T09:32:38.446407+00:00"
+    },
+    "crates/spec-store-core/src/reuse/enforcer.rs": {
+      "percentage": 86.98224852071006,
+      "updated_at": "2026-04-13T09:32:38.446421+00:00"
+    },
+    "crates/spec-store-cli/src/reporter.rs": {
+      "percentage": 48.62385321100918,
+      "updated_at": "2026-04-13T09:32:38.446433+00:00"
+    },
+    "crates/spec-store-core/src/coverage/fn_coverage.rs": {
+      "percentage": 99.18032786885246,
+      "updated_at": "2026-04-13T09:32:38.446396+00:00"
+    },
+    "crates/spec-store-core/src/store/baseline.rs": {
+      "percentage": 96.42857142857143,
+      "updated_at": "2026-04-13T09:32:38.446412+00:00"
     }
   }
 }

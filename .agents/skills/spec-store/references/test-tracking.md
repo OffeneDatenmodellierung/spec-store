@@ -16,11 +16,8 @@ spec-store tracks tests alongside production code. Every scanned function is tag
 ## Listing tests
 
 ```bash
-# Via CLI — catchup shows [test] tags
+# catchup shows [test] tags on test functions
 spec-store catchup --path src/
-
-# Via MCP tool
-list_tests(path?)
 ```
 
 ## Function-to-test mapping
@@ -31,22 +28,21 @@ spec-store maps tests to production functions using two heuristics:
 2. **File match**: Tests in the same file as production code map to all production
    functions in that file (lower confidence, used when no name match found)
 
-```bash
-# Via MCP tool
-test_mappings(function_name?: "validate_stake")
-```
-
 ## Per-function coverage
 
 When an `lcov.info` file is available, spec-store cross-references LCOV `DA:` lines
 with function line ranges to compute per-function coverage percentages.
 
 ```bash
-# Via MCP tool
-function_coverage(from?: "lcov.info", function_name?: "validate_stake")
-```
+# Generate coverage data first
+cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
 
-Returns for each function: name, file, percentage, lines found, lines hit.
+# View per-file coverage (grouped by folder)
+spec-store coverage report
+
+# Machine-readable output
+spec-store coverage report --json
+```
 
 ## Workflow for agents
 

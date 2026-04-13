@@ -15,7 +15,7 @@ pub fn find_cfg_test_ranges(source: &str) -> Vec<(usize, usize)> {
                 j += 1;
             }
             if j < lines.len() && lines[j].trim().starts_with("mod ") {
-                let start = j + 1; // 1-indexed
+                let start = i + 1; // 1-indexed, includes #[cfg(test)] line
                 let end = find_block_end(&lines, j);
                 ranges.push((start, end));
                 i = end;

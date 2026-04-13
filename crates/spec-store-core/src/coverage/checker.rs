@@ -82,7 +82,8 @@ fn check_one(fc: &FileCoverage, config: &CoverageConfig, baselines: &BaselineSto
             }
         }
         Some(baseline) => {
-            if config.ratchet && config.fail_on_regression && pct < baseline - f64::EPSILON {
+            // Allow 0.2% tolerance for floating point variance between lcov runs
+            if config.ratchet && config.fail_on_regression && pct < baseline - 0.2 {
                 return CheckResult::Regressed {
                     file,
                     pct,

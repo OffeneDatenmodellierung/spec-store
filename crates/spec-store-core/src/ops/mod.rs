@@ -132,8 +132,18 @@ pub fn catchup(
 fn scan_staged_functions(root: &std::path::Path) -> Vec<FunctionInfo> {
     crate::git::staged_files(root)
         .iter()
-        .filter_map(|f| scanner::scan_file(&root.join(f)).ok())
-        .flatten()
+        .flat_map(|relative| {
+            let abs = root.join(relative);
+            scanner::scan_file(&abs)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|mut fi| {
+                    // Use the relative path so it matches registry keys
+                    fi.file = relative.clone();
+                    fi
+                })
+                .collect::<Vec<_>>()
+        })
         .collect()
 }
 
@@ -269,6 +279,36 @@ mod tests {
         let result = catchup(&ctx, Some("/nonexistent"), false).unwrap();
         assert!(result.missing.is_empty());
         assert_eq!(result.total_scanned, 0);
+    }
+
+    #[test]
+    fn catchup_staged_in_non_git_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ctx = AppContext {
+            root: dir.path().to_path_buf(),
+            config: config::Config::default(),
+            structured: StructuredStore::open_in_memory().unwrap(),
+            baseline: BaselineStore::new_empty(),
+            vectors: LocalVectorStore::new_empty(),
+        };
+        // No git repo → no staged files → no missing
+        let result = catchup(&ctx, None, true).unwrap();
+        assert!(result.missing.is_empty());
+    }
+
+    #[test]
+    fn scan_staged_empty_in_non_git() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let fns = scan_staged_functions(dir.path());
+        assert!(fns.is_empty());
+    }
+
+    #[test]
+    fn init_creates_config() {
+        let dir = tempfile::TempDir::new().unwrap();
+        // init requires git, but should at least create config
+        let _ = init(dir.path());
+        assert!(dir.path().join(".spec-store/config.toml").exists());
     }
 
     #[test]

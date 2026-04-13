@@ -21,7 +21,27 @@ pub fn parse(lcov_path: &Path) -> Result<HashMap<String, FileCoverage>> {
     let content = fs::read_to_string(lcov_path).map_err(|e| {
         SpecStoreError::Coverage(format!("Cannot read {}: {e}", lcov_path.display()))
     })?;
-    parse_content(&content)
+    // Determine project root: parent of the lcov file, or cwd
+    let root = lcov_path
+        .parent()
+        .and_then(|p| p.canonicalize().ok())
+        .unwrap_or_default();
+    let mut results = parse_content(&content)?;
+    relativise_paths(&mut results, &root);
+    Ok(results)
+}
+
+fn relativise_paths(results: &mut HashMap<String, FileCoverage>, root: &Path) {
+    let root_str = format!("{}/", root.display());
+    let updated: Vec<(String, FileCoverage)> = results
+        .drain()
+        .map(|(k, mut v)| {
+            let rel = k.strip_prefix(&root_str).unwrap_or(&k).to_string();
+            v.path = rel.clone();
+            (rel, v)
+        })
+        .collect();
+    results.extend(updated);
 }
 
 pub fn parse_content(content: &str) -> Result<HashMap<String, FileCoverage>> {
@@ -91,7 +111,22 @@ pub fn parse_detail(lcov_path: &Path) -> Result<HashMap<String, Vec<LineCoverage
     let content = fs::read_to_string(lcov_path).map_err(|e| {
         SpecStoreError::Coverage(format!("Cannot read {}: {e}", lcov_path.display()))
     })?;
-    parse_detail_content(&content)
+    let root = lcov_path
+        .parent()
+        .and_then(|p| p.canonicalize().ok())
+        .unwrap_or_default();
+    let root_str = format!("{}/", root.display());
+    let mut results = parse_detail_content(&content)?;
+    // Relativise keys
+    let updated: Vec<(String, Vec<LineCoverage>)> = results
+        .drain()
+        .map(|(k, v)| {
+            let rel = k.strip_prefix(&root_str).unwrap_or(&k).to_string();
+            (rel, v)
+        })
+        .collect();
+    results.extend(updated);
+    Ok(results)
 }
 
 pub fn parse_detail_content(content: &str) -> Result<HashMap<String, Vec<LineCoverage>>> {

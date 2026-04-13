@@ -1,21 +1,22 @@
 # CLAUDE.md — spec-store
 
-This file is read automatically by Claude Code and other AI agents.
-Do not modify it manually — regenerate with `spec-store context generate`.
+Read by Claude Code automatically. For full details, activate the spec-store skill
+or read `.agents/skills/spec-store/SKILL.md`.
 
 ## Project
 
-`spec-store` is a Rust CLI tool that maintains a codebase specification registry
-with semantic search, quality gates, and multi-agent worktree coordination.
-It dogfoods its own gates: all files must pass the rules it enforces on others.
+`spec-store` is a Rust workspace (two crates: `spec-store-core` library +
+`spec-store-cli` binary) that maintains a codebase specification registry
+with semantic search, quality gates, test tracking, and multi-agent worktree
+coordination. It dogfoods its own gates.
 
-## Hard Rules (enforced by gates — do not bypass)
+## Hard Rules (enforced by gates)
 
 | Rule | Limit |
 |------|-------|
 | Lines per file (code) | 300 |
 | Lines per function | 50 |
-| Functions per file | 15 |
+| Functions per file (production only) | 15 |
 | Cyclomatic complexity | 10 |
 | Parameters per function | 5 |
 | Test coverage per file | 85% |
@@ -27,70 +28,42 @@ It dogfoods its own gates: all files must pass the rules it enforces on others.
 spec-store search "<what you intend to write>"
 ```
 
-If a similarity ≥ 0.85 exists, extend the existing function or record a reason:
+## Before Pushing
+
 ```bash
-spec-store reuse acknowledge <id> --reason "..."
+cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+spec-store quality check --staged
+spec-store catchup --staged --fail-on-missing
+spec-store coverage check
+spec-store worktree verify
+```
+
+## CHANGELOG.md is mandatory
+
+Every user-visible change must add an entry to `CHANGELOG.md` under `[Unreleased]`.
+
+## Running Tests
+
+```bash
+cargo test --workspace
+cargo test -p spec-store-core
+cargo llvm-cov --lcov --output-path lcov.info  # generate coverage
+spec-store coverage check                       # enforce gates
 ```
 
 ## Module Map
 
 ```
-src/
-  main.rs          — entry point only, <20 lines
-  error.rs         — shared error enum
-  config.rs        — load/save .spec-store/config.toml
-  cli/
-    commands.rs    — clap structs (no logic)
-    dispatch.rs    — command routing and AppContext
-  store/
-    structured.rs  — SQLite: decisions, features, worktrees, functions
-    baseline.rs    — coverage baseline ratchet (JSON-backed)
-    vector.rs      — cosine similarity vector store (JSON-backed)
-  scanner/
-    regex_scanner.rs — Rust/Python/TS function extractor
-    quality.rs       — file/fn length, complexity, param gates
-  coverage/
-    lcov.rs        — lcov format parser
-    checker.rs     — threshold + ratchet enforcement
-    reporter.rs    — coloured terminal output
-  ai/
-    provider.rs    — LlmProvider trait + NoneProvider
-    claude.rs      — Anthropic API impl
-    lightllm.rs    — OpenAI-compat impl
-  hooks/
-    installer.rs   — writes .githooks/, sets core.hooksPath
-  interview/
-    session.rs     — multi-turn AI interview
-  context/
-    generator.rs   — produces AGENTS.md from store state
-  reuse/
-    enforcer.rs    — similarity gate with tiered thresholds
+crates/
+  spec-store-core/src/
+    lib.rs, config.rs, error.rs, git.rs, util.rs
+    ops/           — search, register, catchup, coverage, quality, worktrees
+    store/         — SQLite, baselines (JSON), vector store (JSON)
+    scanner/       — regex function extractor, quality gates, test detection, test mapping
+    coverage/      — LCOV parser, checker, per-function coverage
+    reuse/         — similarity gate
+    hooks/         — git hook installer
+    context/       — AGENTS.md generator
+  spec-store-cli/src/
+    main.rs, commands.rs, dispatch.rs, reporter.rs
 ```
-
-## Key Architectural Decisions
-
-- [2026-04-07] Word-bag local embeddings by default; no API calls for vector search
-- [2026-04-07] Qdrant is optional (future); LocalVectorStore covers most repos
-- [2026-04-07] Baselines ratchet upward only — coverage can never regress
-- [2026-04-07] Per-file coverage threshold, not project-wide, to prevent masking
-- [2026-04-07] Git hooks committed to `.githooks/` + `core.hooksPath` for team enforcement
-- [2026-04-07] async-trait used for LlmProvider; NoneProvider makes CLI work offline
-
-## Running Tests
-
-```bash
-cargo test                          # all tests
-cargo test --lib coverage           # coverage module only
-cargo llvm-cov --lcov --output-path lcov.info  # generate coverage report
-spec-store coverage check           # enforce gates
-```
-
-## Adding a New Feature
-
-1. `spec-store search "<intent>"` — check for existing code
-2. `spec-store worktree claim <branch> --contract <path>`
-3. Write code — keep files < 300 lines, functions < 50 lines
-4. Write tests — target 85%+ per file
-5. `spec-store quality check --path src/<your module>/`
-6. `spec-store catchup --staged` — register new functions
-7. Push — `pre-push` hook checks coverage and worktree conflicts

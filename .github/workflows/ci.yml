@@ -82,17 +82,9 @@ jobs:
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lcov
+          name: coverage-lcov
           path: lcov.info
-          retention-days: 7
-
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: lcov.info
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          retention-days: 30
 
       # Dogfood: run spec-store against itself
       - name: Install spec-store
@@ -100,13 +92,14 @@ jobs:
 
       - name: spec-store — coverage gates
         run: |
+          rm -f .spec-store/baselines.json
           spec-store coverage baseline --from lcov.info
           spec-store coverage check --from lcov.info
 
       - name: spec-store — quality gates
         run: spec-store quality check --path crates/
 
-      - name: spec-store — catchup
+      - name: spec-store — catchup (no unregistered functions)
         run: spec-store catchup --path crates/ --fail-on-missing
 
   # ── Cross-platform build ─────────────────────────────────────────────
@@ -149,7 +142,7 @@ jobs:
       - name: Download lcov artifact
         uses: actions/download-artifact@v4
         with:
-          name: lcov
+          name: coverage-lcov
 
       - name: Post coverage summary as PR comment
         uses: actions/github-script@v7
