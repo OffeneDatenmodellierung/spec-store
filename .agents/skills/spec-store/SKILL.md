@@ -33,9 +33,13 @@ If similarity >= 0.85 exists, extend the existing function instead of writing a 
 
 ```bash
 # 1. Run tests with coverage (generates lcov.info — required by coverage check)
-cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+#    Pick the generator for your language:
+#      Rust    cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+#      Python  coverage run -m pytest && coverage lcov -o lcov.info
+#      JS/TS   nyc --reporter=lcovonly       # mocha/jest
+#              vitest run --coverage --coverage.reporter=lcov
 
-# 2. Run gates
+# 2. Run gates (language-agnostic)
 spec-store quality check --staged
 spec-store catchup --staged --fail-on-missing
 spec-store coverage check
@@ -46,8 +50,11 @@ spec-store worktree verify
 
 ```bash
 spec-store catchup --path src/  # find unregistered functions
-# Then register each with a description YOU write:
-spec-store register fn --name "validate_stake" --file "src/risk.rs" --line 42 --desc "Validates betting stake against configured limit"
+# Then register each with a description YOU write. Examples (file extension
+# determines the language — .rs / .py / .ts / .tsx / .js / .jsx / .mjs / .cjs):
+spec-store register fn --name "validate_stake" --file "src/risk.rs"  --line 42 --desc "Validates betting stake against configured limit"
+spec-store register fn --name "calculate_total" --file "app/cart.py" --line 18 --desc "Sums cart items and applies tax"
+spec-store register fn --name "fetchUser"       --file "src/api.ts"  --line 7  --desc "Fetches a user by id from the API"
 ```
 
 ### Every change must update CHANGELOG.md

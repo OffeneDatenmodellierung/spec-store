@@ -5,13 +5,16 @@ spec-store tracks tests alongside production code. Every scanned function is tag
 
 ## How tests are detected
 
-**Rust**: `#[test]`, `#[tokio::test]`, `#[rstest]` attributes, or functions inside
-`#[cfg(test)]` modules.
+**Rust** (`.rs`): `#[test]`, `#[tokio::test]`, `#[rstest]` attributes, or functions
+inside `#[cfg(test)]` modules.
 
-**Python**: Functions with `test_` prefix, or `@pytest.mark`/`@pytest.fixture` decorators.
+**Python** (`.py`): functions with `test_` prefix, `@pytest.mark` /
+`@pytest.fixture` decorators, or any method inside a `class Test*` block
+(unittest-style).
 
-**TypeScript**: Functions with `test_` prefix, or files matching `*.test.ts`,
-`*.spec.ts`, or in `__tests__/` directories.
+**TypeScript / JavaScript** (`.ts .tsx .js .jsx .mjs .cjs`): functions with
+`test_` prefix, or files matching `*.test.{ts,tsx,js,jsx}`,
+`*.spec.{ts,tsx,js,jsx}`, or anything under `__tests__/`.
 
 ## Listing tests
 
@@ -34,8 +37,10 @@ When an `lcov.info` file is available, spec-store cross-references LCOV `DA:` li
 with function line ranges to compute per-function coverage percentages.
 
 ```bash
-# Generate coverage data first
-cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+# Generate coverage data first — pick the generator for your language:
+#   Rust    cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+#   Python  coverage run -m pytest && coverage lcov -o lcov.info
+#   JS/TS   vitest run --coverage --coverage.reporter=lcov   (or: nyc --reporter=lcovonly)
 
 # View per-file coverage (grouped by folder)
 spec-store coverage report

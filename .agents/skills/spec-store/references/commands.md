@@ -55,11 +55,20 @@ spec-store decision list
 
 ## Coverage
 
-**Prerequisite**: Coverage commands require an `lcov.info` file. Generate it first:
+**Prerequisite**: Coverage commands require an `lcov.info` file. Generate it
+with the tool that matches your project's language — spec-store reads the
+resulting LCOV the same way for all of them:
 
 ```bash
-# Generate coverage data (MUST run before any coverage command)
+# Rust
 cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+
+# Python (coverage.py)
+coverage run -m pytest && coverage lcov -o lcov.info
+
+# TypeScript / JavaScript
+nyc --reporter=lcovonly                                          # mocha / jest
+vitest run --coverage --coverage.reporter=lcov                   # vitest
 ```
 
 ```bash

@@ -1,7 +1,10 @@
 use crate::{
     config::QualityConfig,
     error::{Result, SpecStoreError},
-    scanner::regex_scanner::{self, FunctionInfo},
+    scanner::{
+        language::{self, LanguageProfile},
+        regex_scanner::{self, FunctionInfo},
+    },
 };
 use std::path::Path;
 use walkdir::WalkDir;
@@ -51,7 +54,7 @@ pub fn check_file(path: &Path, config: &QualityConfig) -> Result<FileViolation> 
     let lang = regex_scanner::detect_language(path);
     let file = path.to_string_lossy().to_string();
     let functions = regex_scanner::scan_source(&source, &file, lang);
-    let code_lines = count_code_lines(&source);
+    let code_lines = count_code_lines(&source, language::profile_for(lang));
     let mut violations = vec![];
     let prod_functions: Vec<_> = functions.iter().filter(|f| !f.is_test).collect();
     check_file_length(code_lines, config, &mut violations);
@@ -67,7 +70,7 @@ pub fn check_dir(root: &Path, config: &QualityConfig) -> Result<Vec<FileViolatio
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| is_source_file(e.path()))
+        .filter(|e| language::is_source_path(e.path()))
         .filter(|e| !is_excluded(e.path(), &config.exclude))
         .map(|e| check_file(e.path(), config))
         .collect()
@@ -136,29 +139,69 @@ fn check_function(f: &FunctionInfo, config: &QualityConfig, v: &mut Vec<Violatio
     }
 }
 
-fn count_code_lines(source: &str) -> usize {
-    let test_ranges = crate::scanner::test_detect::find_cfg_test_ranges(source);
+struct CodeLineFilter<'a> {
+    profile: Option<&'a LanguageProfile>,
+    test_ranges: Vec<(usize, usize)>,
+    in_doc_block: Option<&'static str>,
+}
+
+impl<'a> CodeLineFilter<'a> {
+    fn is_code(&mut self, line_num: usize, line: &str) -> bool {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            return false;
+        }
+        if let Some(close) = self.in_doc_block {
+            if trimmed.contains(close) {
+                self.in_doc_block = None;
+            }
+            return false;
+        }
+        if self.handle_doc_block_open(trimmed) {
+            return false;
+        }
+        if self.is_comment(trimmed) {
+            return false;
+        }
+        !self
+            .test_ranges
+            .iter()
+            .any(|&(s, e)| line_num >= s && line_num <= e)
+    }
+
+    fn handle_doc_block_open(&mut self, trimmed: &str) -> bool {
+        let Some(p) = self.profile else { return false };
+        for &(open, close) in p.doc_block_delimiters {
+            if let Some(rest) = trimmed.strip_prefix(open) {
+                if !rest.contains(close) {
+                    self.in_doc_block = Some(close);
+                }
+                return true;
+            }
+        }
+        false
+    }
+
+    fn is_comment(&self, trimmed: &str) -> bool {
+        let prefixes: &[&str] = self
+            .profile
+            .map(|p| p.comment_line_prefixes)
+            .unwrap_or(&["//", "#"]);
+        prefixes.iter().any(|p| trimmed.starts_with(*p))
+    }
+}
+
+fn count_code_lines(source: &str, profile: Option<&LanguageProfile>) -> usize {
+    let mut filter = CodeLineFilter {
+        profile,
+        test_ranges: crate::scanner::test_detect::find_cfg_test_ranges(source),
+        in_doc_block: None,
+    };
     source
         .lines()
         .enumerate()
-        .filter(|(i, l)| {
-            let line_num = i + 1; // 1-indexed
-            let t = l.trim();
-            !t.is_empty()
-                && !t.starts_with("//")
-                && !t.starts_with('#')
-                && !test_ranges
-                    .iter()
-                    .any(|&(start, end)| line_num >= start && line_num <= end)
-        })
+        .filter(|(i, l)| filter.is_code(i + 1, l))
         .count()
-}
-
-fn is_source_file(path: &Path) -> bool {
-    matches!(
-        path.extension().and_then(|e| e.to_str()),
-        Some("rs") | Some("py") | Some("ts") | Some("tsx")
-    )
 }
 
 fn is_excluded(path: &Path, patterns: &[String]) -> bool {
@@ -169,6 +212,7 @@ fn is_excluded(path: &Path, patterns: &[String]) -> bool {
 mod tests {
     use super::*;
     use crate::config::QualityConfig;
+    use crate::scanner::language::{profile_for, Language};
 
     fn default_config() -> QualityConfig {
         QualityConfig {
@@ -211,8 +255,28 @@ mod tests {
 
     #[test]
     fn count_code_lines_skips_blanks_and_comments() {
-        let src = "// comment\n\nfn foo() {}\n# python comment\n";
-        assert_eq!(count_code_lines(src), 1);
+        let src = "// comment\n\nfn foo() {}\n";
+        assert_eq!(count_code_lines(src, profile_for(Language::Rust)), 1);
+    }
+
+    #[test]
+    fn count_code_lines_skips_python_docstrings() {
+        let src =
+            "def foo():\n    \"\"\"docstring line one\n    line two\n    \"\"\"\n    return 1\n";
+        // Expected: `def foo():` and `return 1` count; the 3 docstring lines do not.
+        assert_eq!(count_code_lines(src, profile_for(Language::Python)), 2);
+    }
+
+    #[test]
+    fn count_code_lines_skips_jsdoc_blocks() {
+        let src = "/**\n * Greet user\n */\nfunction hello() {}\n";
+        assert_eq!(count_code_lines(src, profile_for(Language::TypeScript)), 1);
+    }
+
+    #[test]
+    fn count_code_lines_without_profile_falls_back() {
+        let src = "// comment\n# also comment\nreal\n";
+        assert_eq!(count_code_lines(src, None), 1);
     }
 
     #[test]
@@ -245,14 +309,6 @@ mod tests {
     }
 
     #[test]
-    fn is_source_file_matches_expected_extensions() {
-        assert!(is_source_file(Path::new("foo.rs")));
-        assert!(is_source_file(Path::new("bar.py")));
-        assert!(is_source_file(Path::new("baz.ts")));
-        assert!(!is_source_file(Path::new("data.json")));
-    }
-
-    #[test]
     fn check_file_on_clean_source() {
         let dir = tempfile::TempDir::new().unwrap();
         let src = dir.path().join("clean.rs");
@@ -275,7 +331,6 @@ mod tests {
     #[test]
     fn check_dir_finds_violations() {
         let dir = tempfile::TempDir::new().unwrap();
-        // Create a file that's too long
         let long_fn = format!("fn big() {{\n{}\n}}\n", "let x = 1;\n".repeat(60));
         std::fs::write(dir.path().join("big.rs"), long_fn).unwrap();
         let result = check_dir(dir.path(), &default_config()).unwrap();

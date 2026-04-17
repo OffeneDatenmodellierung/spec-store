@@ -6,7 +6,7 @@ branding:
 
 inputs:
   version:
-    description: 'spec-store version to download (e.g. 0.3.0)'
+    description: 'spec-store version to download (e.g. 0.4.0)'
     required: true
   lcov-path:
     description: 'Path to lcov.info file for coverage checks'

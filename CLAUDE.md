@@ -51,6 +51,22 @@ cargo llvm-cov --lcov --output-path lcov.info  # generate coverage
 spec-store coverage check                       # enforce gates
 ```
 
+## Supported languages
+
+The scanner / quality gate / test detection / coverage layers all run against
+Rust, Python and the JS/TS family. Generate `lcov.info` with the right tool
+for the project:
+
+| Language       | Extensions                    | LCOV generator                                  |
+|----------------|-------------------------------|--------------------------------------------------|
+| Rust           | `.rs`                         | `cargo llvm-cov --lcov --output-path lcov.info` |
+| Python         | `.py`                         | `coverage run -m pytest && coverage lcov -o lcov.info` |
+| TypeScript/JS  | `.ts .tsx .js .jsx .mjs .cjs` | `nyc --reporter=lcovonly` or `vitest --coverage` |
+
+Adding another language is a one-entry change in
+`crates/spec-store-core/src/scanner/language.rs` (extensions, function regex,
+comment + doc-block delimiters).
+
 ## Module Map
 
 ```
@@ -59,7 +75,7 @@ crates/
     lib.rs, config.rs, error.rs, git.rs, util.rs
     ops/           — search, register, catchup, coverage, quality, worktrees
     store/         — SQLite, baselines (JSON), vector store (JSON)
-    scanner/       — regex function extractor, quality gates, test detection, test mapping
+    scanner/       — language profiles, regex extractor, quality gates, test detection, test mapping
     coverage/      — LCOV parser, checker, per-function coverage
     reuse/         — similarity gate
     hooks/         — git hook installer

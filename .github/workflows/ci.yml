@@ -93,7 +93,7 @@ jobs:
       - name: spec-store gates
         uses: ./.github/actions/check
         with:
-          version: '0.3.0'
+          version: '0.4.0'
           skip-download: 'true'
           lcov-path: lcov.info
           quality-path: crates/

@@ -5,6 +5,37 @@ All notable changes to spec-store will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.4.0] - 2026-04-17
+
+### Added
+
+- **`scanner::language` module** with a `LanguageProfile` registry centralising
+  file extensions, function-detection regexes, comment-line prefixes and
+  doc-block delimiters. Adding a new language is a single registry entry
+- **JavaScript support** — `.js`, `.jsx`, `.mjs`, `.cjs` files are now scanned
+  alongside `.ts` / `.tsx`
+- **Arrow-function detection** for the JS/TS family — `const fn = (a, b) => …`
+  and `export const fn = async (a, b): T => …` are now recognised as functions
+- **Python `unittest` class detection** — methods inside `class Test*` blocks
+  are correctly tagged as tests, in addition to the existing `test_` prefix and
+  `@pytest.*` decorator detection
+- **Doc-block stripping** in `count_code_lines` — Python triple-quoted
+  docstrings (`"""…"""`, `'''…'''`) and JSDoc `/** … */` blocks no longer
+  inflate per-file code-line counts
+- **Per-language coverage guidance** in the skill (`SKILL.md`, `commands.md`,
+  `ci-setup.md`, `test-tracking.md`) — example LCOV generators for Rust,
+  Python (`coverage.py`) and JS/TS (`vitest` / `nyc`)
+- **Three per-language CI workflow examples** in `references/ci-setup.md`
+  replacing the single Rust-only sample
+
+### Changed
+
+- **`scanner::quality::is_source_file`** removed in favour of
+  `scanner::language::is_source_path`. `scanner/mod.rs` and `quality.rs` now
+  share one extension list
+
 ## [0.3.0] - 2026-04-12
 
 ### Added

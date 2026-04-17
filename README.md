@@ -31,8 +31,10 @@ spec-store catchup --path src/
 spec-store catchup --staged --fail-on-missing   # staged files only (for hooks)
 spec-store catchup --auto-register              # auto-register all found
 
-# Coverage gates (requires lcov.info — run tests first)
-cargo llvm-cov --lcov --output-path lcov.info
+# Coverage gates (requires lcov.info — run tests first with the generator for your language)
+#   Rust:    cargo llvm-cov --lcov --output-path lcov.info --ignore-filename-regex 'main\.rs'
+#   Python:  coverage run -m pytest && coverage lcov -o lcov.info
+#   JS/TS:   vitest run --coverage --coverage.reporter=lcov   (or: nyc --reporter=lcovonly)
 spec-store coverage report              # grouped by folder
 spec-store coverage report --json       # machine-readable JSON
 spec-store coverage check               # enforce 85% floor + ratchet
@@ -62,9 +64,9 @@ Add spec-store gates to any repo's CI pipeline:
 
 ```yaml
 - name: spec-store gates
-  uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.3.0
+  uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.4.0
   with:
-    version: '0.3.0'
+    version: '0.4.0'
     lcov-path: lcov.info
     quality-path: src/
 ```
@@ -117,12 +119,29 @@ similarity_block   = 0.95     # blocks commit
 
 Hooks live in `.githooks/` (committed). Activated by `spec-store init`.
 
+## Supported Languages
+
+The scanner, quality gate, test detection and coverage layers all run against:
+
+| Language       | Extensions                              | LCOV generator                                              |
+|----------------|------------------------------------------|--------------------------------------------------------------|
+| Rust           | `.rs`                                   | `cargo llvm-cov --lcov --output-path lcov.info`             |
+| Python         | `.py`                                   | `coverage run -m pytest && coverage lcov -o lcov.info`      |
+| TypeScript / JS | `.ts .tsx .js .jsx .mjs .cjs`           | `vitest run --coverage --coverage.reporter=lcov` or `nyc --reporter=lcovonly` |
+
+Adding another language is a one-entry change in
+`crates/spec-store-core/src/scanner/language.rs` (extensions, function regex,
+comment + doc-block delimiters).
+
 ## Test Tracking
 
 Functions are tagged `is_test` via language-specific detection:
 - **Rust**: `#[test]`, `#[tokio::test]`, `#[rstest]`, `#[cfg(test)]` modules
-- **Python**: `test_` prefix, `@pytest.mark` decorators
-- **TypeScript**: `test_` prefix, `.test.ts`/`.spec.ts` files
+- **Python**: `test_` prefix, `@pytest.mark`/`@pytest.fixture` decorators, or any
+  method inside a `class Test*` block (unittest-style)
+- **TypeScript / JavaScript**: `test_` prefix, or files matching
+  `*.test.{ts,tsx,js,jsx}` / `*.spec.{ts,tsx,js,jsx}` / `__tests__/`. Arrow
+  functions (`const fn = (x) => …`) are recognised alongside `function` declarations
 
 Quality gates only apply to production functions — test functions are excluded from
 line count, complexity, function count, and parameter checks.

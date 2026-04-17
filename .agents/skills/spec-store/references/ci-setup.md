@@ -9,48 +9,93 @@ Add to your workflow after generating `lcov.info`:
 
 ```yaml
 - name: spec-store gates
-  uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.3.0
+  uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.4.0
   with:
-    version: '0.3.0'
+    version: '0.4.0'
     lcov-path: lcov.info
 ```
 
-## Full example workflow
+## Full example workflows
+
+The spec-store gate step is identical regardless of language — only the
+coverage-generation step changes.
+
+### Rust
 
 ```yaml
 name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
+on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
+      - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run tests with coverage
         run: |
           cargo llvm-cov \
-            --workspace \
-            --lcov \
-            --output-path lcov.info \
+            --workspace --lcov --output-path lcov.info \
             --ignore-filename-regex 'main\.rs'
-
       - name: spec-store gates
-        uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.3.0
+        uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.4.0
         with:
-          version: '0.3.0'
+          version: '0.4.0'
+          lcov-path: lcov.info
+          quality-path: src/
+          catchup-path: src/
+```
+
+### Python (coverage.py + pytest)
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -e ".[test]" coverage pytest
+      - name: Run tests with coverage
+        run: |
+          coverage run -m pytest
+          coverage lcov -o lcov.info
+      - name: spec-store gates
+        uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.4.0
+        with:
+          version: '0.4.0'
+          lcov-path: lcov.info
+          quality-path: src/
+          catchup-path: src/
+```
+
+### TypeScript / JavaScript (vitest or jest+nyc)
+
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - name: Run tests with coverage
+        run: npx vitest run --coverage --coverage.reporter=lcov
+        # or with jest + nyc:  npx nyc --reporter=lcovonly npm test
+      - name: Move LCOV to repo root
+        run: cp coverage/lcov.info ./lcov.info
+      - name: spec-store gates
+        uses: OffeneDatenmodellierung/spec-store/.github/actions/check@v0.4.0
+        with:
+          version: '0.4.0'
           lcov-path: lcov.info
           quality-path: src/
           catchup-path: src/
@@ -116,7 +161,7 @@ workflow (e.g. spec-store's own CI):
 - name: spec-store gates
   uses: ./.github/actions/check
   with:
-    version: '0.3.0'
+    version: '0.4.0'
     skip-download: 'true'
     lcov-path: lcov.info
 ```
